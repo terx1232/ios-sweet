@@ -6,6 +6,32 @@
 
 ## Active handoff 2026-10-22: FPS and missing UI, kernel 0135 preparation
 
+- **TRACE RECOVERED (2026-10-23):** first USB L block timed out and was not
+  retained by the initial strict reader. Returned Android pstore recovered
+  diagnostic sources/state: ios-t290/logs/elements-trace1/{console.txt,trace.txt,
+  console-ramoops-0.bin}; 441 selected lines. SD trace request done 4/4.
+  Recount zero-time panic repeated (0 >= 0x171dc4e82). No visual fix yet.
+- User rebooted iPadOS again. Saved USB logs robustly, including incomplete
+  raw packets, at ios-t290/usb-captures/elements-trace2/. log-2 is missing
+  1024 bytes; log-3 is a complete 65600-byte wire packet with 407 TRACE
+  markers. Complete 3072064-byte frame.raw/frame.png captured.
+  Home screen: white widget shapes and dock visible, icon content missing,
+  text dark purple. This is not just a lock-screen interaction problem.
+- Trace: no GL errors/missing slots seen, viewport and color write mask
+  plausible, level-0 textures defined with max level 0 (except real mip
+  chains max8/9). Actual CA shaders use lowp vertex_color varying,
+  vertex_matrix, texture transforms and multi-pass composition. Alpha
+  shaders explicitly read t0.a, so the earlier raw ALPHA expectation fix
+  does not itself explain remaining UI loss. Need targeted CA-like tests
+  for vertex-color/normalized attributes/matrix and intermediate passes.
+  Mesa 24.2.8 has FD_MESA_DEBUG=nofp16 and IR3_SHADER_DEBUG=nofp16 for a
+  controlled precision experiment; NOT enabled or verified yet. Do not
+  state precision lowering is the established cause.
+- User asked whether switching to a custom Metal driver would help. Current
+  tree has no Metal backend; long-term GPU.md already mentions AIR->NIR->ir3.
+  This is a separate API/compiler/resource/submission project. Preserve
+  current content-first work unless the user explicitly switches scope.
+
 - Latest return-to-Android pstore saved ios-t290/logs/elements-usb-return/
   console.bin: recount.c:414 assertion lhs->rsn_time_mach >= rhs->rsn_time_mach,
   0 >= 0x24f4072ff, CPU0. Confirms a second zero-time snapshot panic; USB
