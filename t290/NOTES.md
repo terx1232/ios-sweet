@@ -6,6 +6,21 @@
 
 ## Active handoff 2026-10-22: FPS and missing UI, kernel 0135 preparation
 
+- **2026-10-23 CA-HALF1 STAGED, awaiting manual iPadOS boot.** Android USB
+  enumerated but ADB initially absent; restarting server with ADB_LIBUSB=0
+  restored root connection. Previous ca-color1 request confirmed done3/3;
+  its old-test/log GET backups recovered. Staged ae44121 test + diagnostic
+  bridge (hashes below), with GETs of current test/bridge/log BEFORE PUTs.
+  Five ops, 50995232 bytes. Full SD readback PASS; request SHA256
+  dd819329e1dda04f13c4353d988447085e51e8fcee3548088fd035d02878f317.
+  Manifest dl/ca-half1/sd-staged.json, saved xfer-manifest.json. Recovery0135,
+  Mesa and trace marker unchanged. Next boot must execute guard; immediately
+  drain USB L and collect F. If pass, inspect actual CA attribute client
+  bytes/type/stride and post-call errors; if failure, preserve failing pixels.
+- Latest Android pstore saved ios-t290/logs/ca-color-return/{console,dmesg}.bin.
+  Another recount.c414 zero-time panic on CPU2 (0 >= 0x396b87a31). Confirms
+  stability problem is not confined to CPU0; no timer workaround applied.
+
 - **2026-10-23 CA-COLOR HARDWARE PASS; EXACT CLIENT FORMAT READY.**
   USB ca-color1/follow-0.txt: constant colors, normalized-u8 colors and
   offscreen composition all match expected pixels in ES2 and ES3, error0,
@@ -29,10 +44,8 @@
   Windows artifacts dl/ca-half1: bridge
   009be0719bbd0a940ff7e172a8cdc9fefbe86b5703fa0fa2d0885e88b4274d65;
   test b0155069081460370001a9a42ec96f22de39d0c1a5d18599c24b0db4b18cfa43.
-  NOT staged yet. User asked to return Android (ADB absent, native COM7
-  available). Next -Result previous ca-color1 request (live boot says3/3),
-  backup bridge/test/log, stage these two files, verify full SD readback,
-  then manual boot and drain USB logs early. Keep t290launch guard intact.
+  Staged and verified as described above. Manual boot must run these tests
+  before enabling the bridge. Keep t290launch guard intact.
   No recovery/kernel/Mesa changes or destructive-write approval needed.
 
 - **2026-10-23 CA-COLOR TEST READY, content priority unchanged.** Added

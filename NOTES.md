@@ -6,8 +6,9 @@ User priority is content first, FPS later. Real CA shader/texture trace and
 complete home-screen USB screenshot saved. CA-like constant/u8 vertex color,
 matrix and offscreen-pass tests PASS on real ES2 and ES3. Actual CA binary
 uses half-float colors in 48-byte client vertices; matching VBO/client-indexed
-tests and bounded attribute diagnostics built locally, awaiting Android to
-stage. No visual fix claimed. Zero-time recount panic remains unresolved.
+tests and bounded attribute diagnostics built locally, staged on microSD
+with full readback PASS (ca-half1, ae44121); awaiting manual iPadOS boot.
+No visual fix claimed. Zero-time recount panic recurred on CPU2, unresolved.
 No reflash needed.
 
 ## Agent handoff / active work (2026-10-15, latest)
