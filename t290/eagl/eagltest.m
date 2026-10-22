@@ -321,6 +321,126 @@ static int test_luminance_alpha(id ctx, struct Macro *m, GLuint targetFbo, unsig
     return 0;
 }
 
+/* Match CA's lowp vertex color, matrix upload and an offscreen texture pass.
+ * The original tests used a constant fragment color and missed these paths. */
+static int test_ca_color(struct Macro *m, GLuint targetFbo)
+{
+    const char *sources[] = {
+        "uniform highp mat4 vertex_matrix; attribute highp vec4 vertex_position; "
+        "attribute lowp vec4 vertex_color; varying lowp vec4 color; varying highp vec2 uv; "
+        "void main(){gl_Position=vertex_matrix*vertex_position;color=vertex_color;"
+        "uv=vertex_position.xy*0.5+0.5;}",
+        "precision mediump float; varying lowp vec4 color; varying highp vec2 uv; "
+        "uniform sampler2D image; uniform int sample_image; "
+        "void main(){gl_FragData[0]=sample_image!=0?texture2D(image,uv)*color:color;}"
+    };
+    GLuint shaders[2], program = CALL(597, GLuint, (void *));
+    for (unsigned i = 0; i < 2; i++) {
+        shaders[i] = CALL(594, GLuint, (void *, GLenum), i ? 0x8b30 : 0x8b31);
+        CALL(595, void, (void *, GLuint, GLsizei, const char *const *, const GLint *), shaders[i], 1, &sources[i], NULL);
+        CALL(596, void, (void *, GLuint), shaders[i]);
+        GLint ok = 0;
+        CALL(622, void, (void *, GLuint, GLenum, GLint *), shaders[i], 0x8b81, &ok);
+        if (!ok) return 70;
+        CALL(598, void, (void *, GLuint, GLuint), program, shaders[i]);
+    }
+    CALL(630, void, (void *, GLuint, GLuint, const char *), program, 0, "vertex_position");
+    CALL(630, void, (void *, GLuint, GLuint, const char *), program, 1, "vertex_color");
+    CALL(599, void, (void *, GLuint), program);
+    GLint ok = 0;
+    CALL(622, void, (void *, GLuint, GLenum, GLint *), program, 0x8b82, &ok);
+    if (!ok) return 71;
+    CALL(600, void, (void *, GLuint), program);
+    GLint matrix = CALL(625, GLint, (void *, GLuint, const char *), program, "vertex_matrix");
+    GLint image = CALL(625, GLint, (void *, GLuint, const char *), program, "image");
+    GLint sample = CALL(625, GLint, (void *, GLuint, const char *), program, "sample_image");
+    if (matrix < 0 || image < 0 || sample < 0) return 72;
+    const GLfloat transform[16] = {.75f,0,0,0, 0,.75f,0,0, 0,0,1,0, 0,0,0,1};
+    CALL(620, void, (void *, GLint, GLsizei, GLboolean, const GLfloat *), matrix, 1, 0, transform);
+    CALL(606, void, (void *, GLint, GLint), image, 1);
+    CALL(606, void, (void *, GLint, GLint), sample, 0);
+    CALL(63, void, (void *, GLenum), 0x0be2);
+    CALL(63, void, (void *, GLenum), 0x0c11);
+    CALL(335, void, (void *, GLint, GLint, GLsizei, GLsizei), 0, 0, 64, 64);
+    struct Vertex { GLfloat p[4]; uint8_t color[4]; } vertices[3] = {
+        {{-1,-1,0,1},{0}}, {{1,-1,0,1},{0}}, {{0,1,0,1},{0}}
+    };
+    GLuint textures[2] = {0}, vbo = 0, intermediateFbo = 0;
+    CALL(98, void, (void *, GLsizei, GLuint *), 2, textures);
+    CALL(342, void, (void *, GLenum), 0x84c1);
+    CALL(5, void, (void *, GLenum, GLuint), 0x0de1, textures[0]);
+    const uint8_t white[4] = {255,255,255,255};
+    CALL(301, void, (void *, GLenum, GLint, GLint, GLsizei, GLsizei, GLint, GLenum, GLenum, const void *),
+        0x0de1, 0, 0x1908, 1, 1, 0, 0x1908, 0x1401, white);
+    CALL(304, void, (void *, GLenum, GLenum, GLint), 0x0de1, 0x2801, 0x2600);
+    CALL(644, void, (void *, GLsizei, GLuint *), 1, &vbo);
+    CALL(642, void, (void *, GLenum, GLuint), 0x8892, vbo);
+    CALL(511, void, (void *, GLuint, GLint, GLenum, GLboolean, GLsizei, const void *),
+        0, 4, 0x1406, 0, sizeof(struct Vertex), NULL);
+    CALL(512, void, (void *, GLuint), 0);
+    CALL(672, void, (void *, GLenum, GLuint), 0x8d40, targetFbo);
+    const uint8_t colors[][4] = {{255,255,255,255}, {0,255,0,255}, {128,64,192,255}, {128,128,128,128}};
+    for (unsigned array = 0; array < 2; array++) {
+        if (array) {
+            CALL(511, void, (void *, GLuint, GLint, GLenum, GLboolean, GLsizei, const void *),
+                1, 4, 0x1401, 1, sizeof(struct Vertex), (const void *)offsetof(struct Vertex, color));
+            CALL(512, void, (void *, GLuint), 1);
+        } else CALL(513, void, (void *, GLuint), 1);
+        for (unsigned c = 0; c < 4; c++) {
+            for (unsigned v = 0; v < 3; v++) memcpy(vertices[v].color, colors[c], 4);
+            CALL(646, void, (void *, GLenum, GLsizeiptr, const void *, GLenum),
+                0x8892, sizeof(vertices), vertices, 0x88e4);
+            if (!array) CALL(485, void, (void *, GLuint, GLfloat, GLfloat, GLfloat, GLfloat),
+                1, colors[c][0]/255.f, colors[c][1]/255.f, colors[c][2]/255.f, colors[c][3]/255.f);
+            CALL(65, void, (void *, GLenum, GLint, GLsizei), 4, 0, 3);
+            uint8_t pixel[4] = {0};
+            CALL(237, void, (void *, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void *),
+                32, 32, 1, 1, 0x1908, 0x1401, pixel);
+            GLenum err = CALL(102, GLenum, (void *));
+            printf("CA color %s case %u RGBA %u,%u,%u,%u error %#x\n", array ? "normalized-u8" : "constant",
+                c, pixel[0], pixel[1], pixel[2], pixel[3], err);
+            if (err) return 73;
+            if (!getenv("SWEET_FAKE")) for (unsigned k = 0; k < 4; k++)
+                if (abs(pixel[k] - colors[c][k]) > 2) return 74;
+        }
+    }
+    /* Draw into a GPU texture, then sample it through a second FBO. */
+    CALL(5, void, (void *, GLenum, GLuint), 0x0de1, textures[1]);
+    CALL(301, void, (void *, GLenum, GLint, GLint, GLsizei, GLsizei, GLint, GLenum, GLenum, const void *),
+        0x0de1, 0, 0x1908, 64, 64, 0, 0x1908, 0x1401, NULL);
+    CALL(304, void, (void *, GLenum, GLenum, GLint), 0x0de1, 0x2801, 0x2600);
+    CALL(304, void, (void *, GLenum, GLenum, GLint), 0x0de1, 0x2800, 0x2600);
+    CALL(674, void, (void *, GLsizei, GLuint *), 1, &intermediateFbo);
+    CALL(672, void, (void *, GLenum, GLuint), 0x8d40, intermediateFbo);
+    CALL(677, void, (void *, GLenum, GLenum, GLenum, GLuint, GLint), 0x8d40, 0x8ce0, 0x0de1, textures[1], 0);
+    if (CALL(675, GLenum, (void *, GLenum), 0x8d40) != 0x8cd5) return 75;
+    CALL(5, void, (void *, GLenum, GLuint), 0x0de1, textures[0]);
+    CALL(513, void, (void *, GLuint), 1);
+    CALL(485, void, (void *, GLuint, GLfloat, GLfloat, GLfloat, GLfloat), 1, 0, 1, 0, 1);
+    CALL(12, void, (void *, GLfloat, GLfloat, GLfloat, GLfloat), 0, 0, 0, 0);
+    CALL(10, void, (void *, GLbitfield), 0x4000);
+    CALL(65, void, (void *, GLenum, GLint, GLsizei), 4, 0, 3);
+    CALL(672, void, (void *, GLenum, GLuint), 0x8d40, targetFbo);
+    CALL(5, void, (void *, GLenum, GLuint), 0x0de1, textures[1]);
+    CALL(485, void, (void *, GLuint, GLfloat, GLfloat, GLfloat, GLfloat), 1, 1, 1, 1, 1);
+    CALL(606, void, (void *, GLint, GLint), sample, 1);
+    CALL(65, void, (void *, GLenum, GLint, GLsizei), 4, 0, 3);
+    uint8_t pixel[4] = {0};
+    CALL(237, void, (void *, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void *),
+        32, 32, 1, 1, 0x1908, 0x1401, pixel);
+    GLenum err = CALL(102, GLenum, (void *));
+    printf("CA intermediate RGBA %u,%u,%u,%u error %#x\n", pixel[0], pixel[1], pixel[2], pixel[3], err);
+    if (err || (!getenv("SWEET_FAKE") && (pixel[0] || pixel[1] != 255 || pixel[2] || pixel[3] != 255))) return 76;
+    CALL(342, void, (void *, GLenum), 0x84c0);
+    CALL(643, void, (void *, GLsizei, const GLuint *), 1, &vbo);
+    CALL(673, void, (void *, GLsizei, const GLuint *), 1, &intermediateFbo);
+    CALL(59, void, (void *, GLsizei, const GLuint *), 2, textures);
+    CALL(600, void, (void *, GLuint), 0);
+    CALL(591, void, (void *, GLuint), program);
+    for (unsigned i = 0; i < 2; i++) CALL(591, void, (void *, GLuint), shaders[i]);
+    return 0;
+}
+
 static int test_main(void)
 {
     @autoreleasepool {
@@ -422,6 +542,8 @@ static int test_main(void)
             if (layouts) return layouts;
             int la = test_luminance_alpha(ctx, m, fbo, api);
             if (la) return la;
+            int color = test_ca_color(m, fbo);
+            if (color) return color;
             CALL(643, void, (void *, GLsizei, const GLuint *), 1, &vbo);
             CALL(600, void, (void *, GLuint), 0);
             CALL(591, void, (void *, GLuint), program);

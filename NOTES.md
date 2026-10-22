@@ -1,12 +1,12 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
-**Active SM-T290 work (2026-10-22):** see `t290/NOTES.md` and `t290/GPU.md`.
-Recovery 0135 installed. All real EAGL ES2/ES3 tests pass, GPU compositor
-active, but UI content still widely missing. User priority: content first,
-FPS later. USB full-frame capture works after host-reader fix; screenshot
-shows almost black lock screen. Bounded shader/texture trace bridge staged
-on SD, awaiting next manual iPadOS boot. Kernel monotonic-time panic also
-observed; not fixed. No recovery reflash needed for staged diagnostic.
+**Active SM-T290 work (2026-10-23):** see `t290/NOTES.md` and `t290/GPU.md`.
+Recovery 0135 installed, GPU compositor active, UI content widely missing.
+User priority is content first, FPS later. Real CA shader/texture trace and
+complete home-screen USB screenshot saved. New CA-like vertex color,
+normalized attribute, matrix and offscreen-pass pixel tests compiled and
+staged on SD (test only). Await manual iPadOS boot and USB results; no visual
+fix claimed. Zero-time recount panic remains unresolved. No reflash needed.
 
 ## Agent handoff / active work (2026-10-15, latest)
 

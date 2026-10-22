@@ -34,13 +34,19 @@ class Packet:
     payload: bytes
     wire: bytes
 
+class PacketTimeout(TimeoutError):
+    def __init__(self, wire):
+        super().__init__(f'USB response incomplete ({len(wire)} bytes retained)')
+        self.wire = bytes(wire)
+
 def read_packet(read, deadline=15):
     end = time.monotonic() + deadline
     buffered = bytearray()
+    received = bytearray()
     def exact(n):
         while len(buffered) < n:
             if time.monotonic() > end:
-                raise TimeoutError('USB response incomplete')
+                raise PacketTimeout(received)
             # Avoid header-only host reads: this usbser link returned
             # incomplete frames with them. Large reads gave full frames;
             # parse the header from our own buffered bytes.
@@ -48,6 +54,7 @@ def read_packet(read, deadline=15):
             if not chunk:
                 continue
             buffered.extend(chunk)
+            received.extend(chunk)
             if len(buffered) > MAX_BYTES + HEADER.size:
                 raise ValueError('USB response exceeds the packet limit')
         out = bytes(buffered[:n])
@@ -85,6 +92,13 @@ def decode_frame(packet):
 
 def find_port():
     import winreg
+    present = set()
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r'HARDWARE\DEVICEMAP\SERIALCOMM') as serial:
+            for i in range(winreg.QueryInfoKey(serial)[1]):
+                present.add(str(winreg.EnumValue(serial, i)[1]).upper())
+    except FileNotFoundError:
+        return None
     root = r'SYSTEM\CurrentControlSet\Enum\USB'
     with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, root) as usb:
         for i in range(winreg.QueryInfoKey(usb)[0]):
@@ -97,7 +111,7 @@ def find_port():
                     try:
                         with winreg.OpenKey(device, instance + r'\Device Parameters') as params:
                             port = winreg.QueryValueEx(params, 'PortName')[0]
-                            if str(port).upper().startswith('COM'):
+                            if str(port).upper() in present:
                                 return port
                     except FileNotFoundError:
                         pass
@@ -231,6 +245,9 @@ def main():
                             events.put(('log', message))
                         stop.wait(max(0, 1 / args.fps - (time.monotonic() - started)))
             except Exception as exc:
+                if isinstance(exc, PacketTimeout) and exc.wire:
+                    partial = args.output / f'partial-{time.strftime("%Y%m%d-%H%M%S")}.t290'
+                    partial.write_bytes(exc.wire)
                 events.put(('status', f'USB: {exc}. Повторное подключение…'))
                 stop.wait(2)
             finally:

@@ -16,7 +16,14 @@ try:
     for cmd in (b'I', b'F', b'L'):
         t = time.monotonic()
         s.write(cmd)
-        p = viewer.read_packet(s.read)
+        try:
+            p = viewer.read_packet(s.read)
+        except viewer.PacketTimeout as exc:
+            partial = out / f'partial-{cmd.decode()}-{time.strftime("%Y%m%d-%H%M%S")}.t290'
+            partial.write_bytes(exc.wire)
+            print(f'Incomplete response saved to {partial}', flush=True)
+            raise
+        (out / f'packet-{cmd.decode()}-{p.sequence}.t290').write_bytes(p.wire)
         dt = time.monotonic() - t
         print(f'{cmd.decode()}: kind {p.kind} seq {p.sequence} {len(p.payload)} bytes in {dt:.2f} s')
         if p.kind == 1:
@@ -25,6 +32,7 @@ try:
             print(f'   {p.width}x{p.height} stride {p.stride} shift {p.shift} -> {name}')
         else:
             text = p.payload.decode(errors='replace')
+            (out / f'packet-{cmd.decode()}-{p.sequence}.txt').write_text(text, encoding='utf-8')
             print('   ' + text[-1500:].replace('\n', '\n   '))
 finally:
     s.close()

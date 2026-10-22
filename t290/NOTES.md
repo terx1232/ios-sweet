@@ -6,6 +6,31 @@
 
 ## Active handoff 2026-10-22: FPS and missing UI, kernel 0135 preparation
 
+- **2026-10-23 CA-COLOR TEST READY, content priority unchanged.** Added
+  test_ca_color: CA-like highp matrix/position + lowp color varying,
+  constant vertex colors and normalized interleaved u8 attributes (white,
+  green, mixed RGB and half alpha), then GPU offscreen-FBO->texture->FBO
+  pass. GLI active_texture slot checked as 342 (not 374); matrix620,
+  vertex_attrib4f485, buffer_data646. Returns 70-76 with actual failing
+  samples logged. Existing guard must still check real pixels.
+  Local ARM64 compile/sign/page hashes/entitlements PASS in 9s. Not yet
+  executed on tablet. No established precision/driver fix claimed.
+- User returned Android for installation. Previous trace request done 4/4.
+  Staged ONLY eagltest (library, trace marker and recovery unchanged), with
+  GET backups of old test/log to dl/ca-color1/before. Full 33682768-byte SD
+  readback PASS; request SHA256
+  1bb7aaf3d0186b06dd8c16968bc99cacdef04842223d1c5e216a89b5b24da944;
+  test 3a7e192d25ffc6470cd6981697d85e43b212070494214cfa69361a4b78eba22a.
+  Manifest dl/ca-color1/sd-staged.json. Next manual iPadOS boot + immediate
+  USB L log drain and F screenshot. If guard fails, inspect CA color samples
+  and do NOT bypass it. If tests pass, continue captured real-CA state tests.
+- USB tooling now preserves PacketTimeout.wire; probe saves complete/raw
+  packets and incomplete replies. Viewer also saves partial packets. Port
+  selection filters stale registry instances against currently present
+  SERIALCOMM names. Recorded full 3072064-byte frame with 7777-byte chunks
+  PASS; known partial log retains all 64576 bytes and raises timeout PASS;
+  Android does not select stale iPadOS COM7 PASS. Python syntax check PASS.
+
 - **TRACE RECOVERED (2026-10-23):** first USB L block timed out and was not
   retained by the initial strict reader. Returned Android pstore recovered
   diagnostic sources/state: ios-t290/logs/elements-trace1/{console.txt,trace.txt,
