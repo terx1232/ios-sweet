@@ -6,6 +6,35 @@
 
 ## Active handoff 2026-10-22: FPS and missing UI, kernel 0135 preparation
 
+- **2026-10-23 CA-COLOR HARDWARE PASS; EXACT CLIENT FORMAT READY.**
+  USB ca-color1/follow-0.txt: constant colors, normalized-u8 colors and
+  offscreen composition all match expected pixels in ES2 and ES3, error0,
+  test exit0. t290launch enables the bridge. Screenshot ca-color1-live/
+  screen.png still shows white widget blocks, missing icons and purple text.
+  New live log0/1 complete; log2 missing1536 bytes, preserved raw. No fix yet.
+- Disassembly of the installed CA GLContext::init_client_state (0x18843647c)
+  shows position4f offset0, color4 half-float (0x140b), normalized1 offset32,
+  texcoords2f offsets16/24, stride48, including client-memory arrays. Do not
+  mistake previous u8/VBO-only tests for coverage of this path. New tests
+  add half-vbo48 and half-client48-indexed, four colors each; not yet run.
+- Added bounded attribute state/constant/client-byte tracing. Client bytes
+  use vm_read_overwrite, never an unchecked dereference; only trace marker
+  enables it. Fixed post-call checks to use actual *_ARB GLI names for
+  vertex pointer/enable (previous unsuffixed names matched no adapters).
+  No driver/precision workaround enabled.
+- Local build /home/kirill/t290-toolchain/build-ca-half1 PASS (8s): ARM64,
+  iOS16, code signature pages and entitlements; 200 explicit test CALL ABI
+  signatures verified. New checker rejects intentionally wrong DrawElements
+  slot66 (correct67). Generated attribute error checks verified.
+  Windows artifacts dl/ca-half1: bridge
+  009be0719bbd0a940ff7e172a8cdc9fefbe86b5703fa0fa2d0885e88b4274d65;
+  test b0155069081460370001a9a42ec96f22de39d0c1a5d18599c24b0db4b18cfa43.
+  NOT staged yet. User asked to return Android (ADB absent, native COM7
+  available). Next -Result previous ca-color1 request (live boot says3/3),
+  backup bridge/test/log, stage these two files, verify full SD readback,
+  then manual boot and drain USB logs early. Keep t290launch guard intact.
+  No recovery/kernel/Mesa changes or destructive-write approval needed.
+
 - **2026-10-23 CA-COLOR TEST READY, content priority unchanged.** Added
   test_ca_color: CA-like highp matrix/position + lowp color varying,
   constant vertex colors and normalized interleaved u8 attributes (white,

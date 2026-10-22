@@ -3,10 +3,12 @@
 **Active SM-T290 work (2026-10-23):** see `t290/NOTES.md` and `t290/GPU.md`.
 Recovery 0135 installed, GPU compositor active, UI content widely missing.
 User priority is content first, FPS later. Real CA shader/texture trace and
-complete home-screen USB screenshot saved. New CA-like vertex color,
-normalized attribute, matrix and offscreen-pass pixel tests compiled and
-staged on SD (test only). Await manual iPadOS boot and USB results; no visual
-fix claimed. Zero-time recount panic remains unresolved. No reflash needed.
+complete home-screen USB screenshot saved. CA-like constant/u8 vertex color,
+matrix and offscreen-pass tests PASS on real ES2 and ES3. Actual CA binary
+uses half-float colors in 48-byte client vertices; matching VBO/client-indexed
+tests and bounded attribute diagnostics built locally, awaiting Android to
+stage. No visual fix claimed. Zero-time recount panic remains unresolved.
+No reflash needed.
 
 ## Agent handoff / active work (2026-10-15, latest)
 

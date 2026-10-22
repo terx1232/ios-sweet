@@ -30,7 +30,9 @@ can be overridden with `T290_TOOLCHAIN`, `T290_IOS_SDK`, `T290_GLI_LAYOUT`,
 `T290_GL_HEADERS`, `CC`, `LD64` and `LDID`.
 
 Outputs include `t290eagl.dylib`, `eagltest`, `SHA256SUMS`, `build-info.txt`
-and the generated source. `verify-local.py` checks baseline ARM64 (not arm64e),
+and the generated source. `verify-gli-calls.py` checks literal test CALL slots
+and their argument/return ABI against the cached GLI layout before compiling.
+`verify-local.py` checks baseline ARM64 (not arm64e),
 iOS 16.0 deployment, each SHA256 code-signature page and the test's signed
 entitlements. The script does not write to the tablet.
 
@@ -41,7 +43,9 @@ renderer active and records the failing pixel test in pstore.
 For disappearing-content diagnosis, a file containing `1` at
 `/private/var/tmp/t290eagl.trace` enables bounded tracing in backboardd:
 shader sources (49 KiB budget), program/shader associations, uniform names,
-and sampled draw/texture state. It does not enable tracing in `eagltest`.
+and sampled draw/texture/vertex-attribute state. Client vertex samples use a
+bounded VM read; invalid pointers are reported without direct dereferencing.
+It does not enable tracing in `eagltest`.
 Write `0` to the marker and restart the daemon/boot to disable it.
 Trace-enabled performance is not a benchmark. The USB viewer collects the
 kernel log while requesting full native-panel frames.

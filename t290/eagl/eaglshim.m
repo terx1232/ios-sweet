@@ -72,6 +72,9 @@ static struct {
     GLint (*GetUniformLocation)(GLuint, const GLchar *);
     void (*GetTexParameteriv)(GLenum, GLenum, GLint *);
     void (*GetTexLevelParameteriv)(GLenum, GLint, GLenum, GLint *);
+    void (*GetVertexAttribiv)(GLuint, GLenum, GLint *);
+    void (*GetVertexAttribfv)(GLuint, GLenum, GLfloat *);
+    void (*GetVertexAttribPointerv)(GLuint, GLenum, void **);
 } gl;
 
 static void plog(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
@@ -549,6 +552,48 @@ static void t290_trace_draw(T290Context *ctx)
     plog("TRACE draw %u ctx %p program %d fbo %u viewport %d,%d,%d,%d color-mask %d%d%d%d",
         n, (__bridge void *)ctx, program, ctx->_drawFbo, viewport[0], viewport[1],
         viewport[2], viewport[3], mask[0], mask[1], mask[2], mask[3]);
+    if ((n <= 12 || !(n & (n - 1))) && gl.GetVertexAttribiv &&
+        gl.GetVertexAttribfv && gl.GetVertexAttribPointerv) {
+        for (GLuint a = 0; a < 4; a++) {
+            GLint enabled = 0, size = 0, type = 0, normalized = 0, stride = 0, buffer = 0;
+            gl.GetVertexAttribiv(a, 0x8622, &enabled);
+            if (!enabled) {
+                GLfloat value[4] = {0};
+                gl.GetVertexAttribfv(a, 0x8626, value);
+                plog("TRACE attrib %u constant %.5g,%.5g,%.5g,%.5g", a,
+                    value[0], value[1], value[2], value[3]);
+                continue;
+            }
+            gl.GetVertexAttribiv(a, 0x8623, &size);
+            gl.GetVertexAttribiv(a, 0x8625, &type);
+            gl.GetVertexAttribiv(a, 0x886a, &normalized);
+            gl.GetVertexAttribiv(a, 0x8624, &stride);
+            gl.GetVertexAttribiv(a, 0x889f, &buffer);
+            void *pointer = NULL;
+            gl.GetVertexAttribPointerv(a, 0x8645, &pointer);
+            plog("TRACE attrib %u array size %d type %#x normalized %d stride %d buffer %d pointer %p",
+                a, size, type, normalized, stride, buffer, pointer);
+            /* Client arrays may be untrusted or inaccessible. Read our own
+             * address space through VM instead of dereferencing the pointer. */
+            if (!buffer && pointer && size >= 1 && size <= 4) {
+                unsigned componentBytes = type == 0x1406 ? 4 :
+                    (type == 0x140b || type == 0x8d61 || type == 0x1403 || type == 0x1402) ? 2 :
+                    (type == 0x1401 || type == 0x1400) ? 1 : 0;
+                if (componentBytes) {
+                    uint8_t bytes[16] = {0};
+                    vm_size_t copied = 0, count = size * componentBytes;
+                    kern_return_t result = vm_read_overwrite(mach_task_self(),
+                        (vm_address_t)(uintptr_t)pointer, count,
+                        (vm_address_t)(uintptr_t)bytes, &copied);
+                    char hex[33] = {0};
+                    for (unsigned j = 0; j < copied && j < sizeof(bytes); j++)
+                        snprintf(hex + j * 2, 3, "%02x", bytes[j]);
+                    plog("TRACE attrib %u client bytes %s read %#x count %llu", a,
+                        hex, result, (unsigned long long)copied);
+                }
+            }
+        }
+    }
     for (GLuint u = 0; u < ctx->_units; u++) {
         if (!ctx->_boundName[u]) continue;
         gl.ActiveTexture(0x84c0 + u);
@@ -1055,6 +1100,9 @@ __attribute__((constructor)) static void bridge_init(void)
         return;
     }
     LOAD(GetTexLevelParameteriv);  /* optional, diagnostic ES3 query */
+    LOAD(GetVertexAttribiv);
+    LOAD(GetVertexAttribfv);
+    LOAD(GetVertexAttribPointerv);
 #undef LOAD
     t290_dispatch_init();
     Class c = objc_getClass("EAGLContext");

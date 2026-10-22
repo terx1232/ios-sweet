@@ -365,6 +365,12 @@ static int test_ca_color(struct Macro *m, GLuint targetFbo)
     struct Vertex { GLfloat p[4]; uint8_t color[4]; } vertices[3] = {
         {{-1,-1,0,1},{0}}, {{1,-1,0,1},{0}}, {{0,1,0,1},{0}}
     };
+    /* GLContext::init_client_state: position at 0, half-float color at 32,
+     * stride 48; these arrays can be in client memory instead of a VBO. */
+    struct CAVertex { GLfloat p[4], uv[4]; uint16_t color[4]; uint32_t pad[2]; } ca[3] = {0};
+    _Static_assert(sizeof(struct CAVertex) == 48 && offsetof(struct CAVertex, color) == 32,
+        "CA vertex layout");
+    for (unsigned v = 0; v < 3; v++) memcpy(ca[v].p, vertices[v].p, sizeof(ca[v].p));
     GLuint textures[2] = {0}, vbo = 0, intermediateFbo = 0;
     CALL(98, void, (void *, GLsizei, GLuint *), 2, textures);
     CALL(342, void, (void *, GLenum), 0x84c1);
@@ -380,30 +386,54 @@ static int test_ca_color(struct Macro *m, GLuint targetFbo)
     CALL(512, void, (void *, GLuint), 0);
     CALL(672, void, (void *, GLenum, GLuint), 0x8d40, targetFbo);
     const uint8_t colors[][4] = {{255,255,255,255}, {0,255,0,255}, {128,64,192,255}, {128,128,128,128}};
-    for (unsigned array = 0; array < 2; array++) {
-        if (array) {
+    const uint16_t half[][4] = {{0x3c00,0x3c00,0x3c00,0x3c00}, {0,0x3c00,0,0x3c00},
+        {0x3800,0x3400,0x3a00,0x3c00}, {0x3800,0x3800,0x3800,0x3800}};
+    const char *modes[] = {"constant", "normalized-u8", "half-vbo48", "half-client48-indexed"};
+    for (unsigned array = 0; array < 4; array++) {
+        CALL(642, void, (void *, GLenum, GLuint), 0x8892, array == 3 ? 0 : vbo);
+        CALL(511, void, (void *, GLuint, GLint, GLenum, GLboolean, GLsizei, const void *),
+            0, 4, 0x1406, 0, array >= 2 ? sizeof(struct CAVertex) : sizeof(struct Vertex),
+            array == 3 ? (const void *)ca : NULL);
+        if (array == 1) {
             CALL(511, void, (void *, GLuint, GLint, GLenum, GLboolean, GLsizei, const void *),
                 1, 4, 0x1401, 1, sizeof(struct Vertex), (const void *)offsetof(struct Vertex, color));
             CALL(512, void, (void *, GLuint), 1);
+        } else if (array >= 2) {
+            CALL(511, void, (void *, GLuint, GLint, GLenum, GLboolean, GLsizei, const void *),
+                1, 4, 0x140b, 1, sizeof(struct CAVertex),
+                array == 3 ? (const void *)ca[0].color : (const void *)offsetof(struct CAVertex, color));
+            CALL(512, void, (void *, GLuint), 1);
         } else CALL(513, void, (void *, GLuint), 1);
         for (unsigned c = 0; c < 4; c++) {
-            for (unsigned v = 0; v < 3; v++) memcpy(vertices[v].color, colors[c], 4);
-            CALL(646, void, (void *, GLenum, GLsizeiptr, const void *, GLenum),
-                0x8892, sizeof(vertices), vertices, 0x88e4);
+            for (unsigned v = 0; v < 3; v++) {
+                memcpy(vertices[v].color, colors[c], 4);
+                memcpy(ca[v].color, half[c], sizeof(ca[v].color));
+            }
+            if (array != 3) CALL(646, void, (void *, GLenum, GLsizeiptr, const void *, GLenum),
+                0x8892, array == 2 ? sizeof(ca) : sizeof(vertices),
+                array == 2 ? (const void *)ca : (const void *)vertices, 0x88e4);
             if (!array) CALL(485, void, (void *, GLuint, GLfloat, GLfloat, GLfloat, GLfloat),
                 1, colors[c][0]/255.f, colors[c][1]/255.f, colors[c][2]/255.f, colors[c][3]/255.f);
-            CALL(65, void, (void *, GLenum, GLint, GLsizei), 4, 0, 3);
+            if (array == 3) {
+                const uint16_t indices[] = {0,1,2};
+                CALL(642, void, (void *, GLenum, GLuint), 0x8893, 0);
+                CALL(67, void, (void *, GLenum, GLsizei, GLenum, const void *), 4, 3, 0x1403, indices);
+            } else CALL(65, void, (void *, GLenum, GLint, GLsizei), 4, 0, 3);
             uint8_t pixel[4] = {0};
             CALL(237, void, (void *, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void *),
                 32, 32, 1, 1, 0x1908, 0x1401, pixel);
             GLenum err = CALL(102, GLenum, (void *));
-            printf("CA color %s case %u RGBA %u,%u,%u,%u error %#x\n", array ? "normalized-u8" : "constant",
+            printf("CA color %s case %u RGBA %u,%u,%u,%u error %#x\n", modes[array],
                 c, pixel[0], pixel[1], pixel[2], pixel[3], err);
             if (err) return 73;
             if (!getenv("SWEET_FAKE")) for (unsigned k = 0; k < 4; k++)
                 if (abs(pixel[k] - colors[c][k]) > 2) return 74;
         }
     }
+    CALL(642, void, (void *, GLenum, GLuint), 0x8892, vbo);
+    CALL(646, void, (void *, GLenum, GLsizeiptr, const void *, GLenum), 0x8892, sizeof(vertices), vertices, 0x88e4);
+    CALL(511, void, (void *, GLuint, GLint, GLenum, GLboolean, GLsizei, const void *),
+        0, 4, 0x1406, 0, sizeof(struct Vertex), NULL);
     /* Draw into a GPU texture, then sample it through a second FBO. */
     CALL(5, void, (void *, GLenum, GLuint), 0x0de1, textures[1]);
     CALL(301, void, (void *, GLenum, GLint, GLint, GLsizei, GLsizei, GLint, GLenum, GLenum, const void *),

@@ -19,6 +19,7 @@ test -f "$gl_headers/gl.h"
 mkdir -p "$out/source"
 out=$(cd "$out" && pwd)
 cp "$here/eaglshim.m" "$here/eagltest.m" "$here/gl_types.h" "$here/surface.h" "$out/source/"
+python3 "$here/verify-gli-calls.py" "$layout" "$here/eagltest.m"
 python3 "$here/gen_dispatch.py" "$sdk" "$out/source/dispatch_generated.h" \
     --layout "$layout" --gl-headers "$gl_headers"
 flags=(-target arm64-apple-ios16.0 -isysroot "$sdk" -O2 -Wall -fobjc-arc)
