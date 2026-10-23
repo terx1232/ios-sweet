@@ -5,9 +5,9 @@ User requested accelerometer-driven automatic rotation. Live Android config:
 KXTJ3 bus4/0x0e, GPIO14/15, axes+Y,-X,+Z, SSC-owned.0138 test image prepared:
 opt-in bounded I2C driver and standard HID accelerometer service. ARM64/full
 link PASS; final60s QEMU PID1 alive without observed panic. Sensor/userland matching
-and AUTO ROTATION NOT VERIFIED OR COMPLETE. Recovery0137 remains installed
-(approved, full SHA readback PASS), its SD update8/8 complete.0138 pushed,
-backup/preflight verified, NOT written; requires explicit0138 approval.
+and AUTO ROTATION NOT VERIFIED OR COMPLETE. Recovery0138 INSTALLED after explicit user approval, full64MiB SHA readback
+PASS (df03715d...cba979). Previous0137 backed up; its SD update8/8 complete.
+Next manual iPadOS boot and native USB sensor/subscriber inspection.
 Faster UI/app stability remains pending hardware logs; no60FPS or app fix
 claimed. Clock work cancelled. Exact hashes/next steps in t290/NOTES.md.
 

@@ -4,7 +4,7 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff 2026-10-23: accelerometer requested;0138 prepared
+## Active handoff 2026-10-23: accelerometer requested;0138 INSTALLED
 
 - User requested accelerometer-driven auto rotation; previous FPS/app task
   remains unfinished. Android ADB/root connected for read-only inspection.
@@ -28,10 +28,12 @@
 - Final QEMU60s PASS: /home/kirill/t290-local-kernel/qa0138-r1/with-root,
   result no_panic_observed/unknown_glyphs0, PID1 running plus6 still-alive
   messages. Sensor disabled in QEMU; NOT physical sensor or UI validation.
-- 0138 image pushed/verified; current0137 fullbackup verified at
-  ios-t290/backup-20261023-accel0138/recovery-before-0138.img. Guarded
-  flash-0138.ps1 read-only preflight PASS. NO0138 PARTITION WRITE; requires
-  explicit user approval after final checks. Approval0137 does not cover0138.
+- 0138 INSTALLED after explicit user approval (2026-10-23). Guarded
+  flash-0138.ps1 -WriteApproved exit0; full64MiB partition SHA256 readback
+  df03715d488c8216e7cb9c9f3b03d1610286acb84f7af6f7140d5c6f8acba979 PASS.
+  Previous0137 fullbackup retained in ios-t290/backup-20261023-accel0138.
+  No reboot command sent. Next manual iPadOS boot with USB; collect via
+  dl/t290-motion/wait-collect.py. Actual sensor and auto rotation pending.
 - Helpers dl/t290-motion/{build.sh,relink0138.py,pack0138.sh,qemu0138-r1.sh,
   make-patch.py}; objects /home/kirill/t290-local-kernel/motion-objects, full
   link /home/kirill/t290-local-kernel/motion0138. Needs native USB collector
