@@ -39,7 +39,7 @@ static int t290_smem_wcnss_item(const volatile uint8_t *p, uint32_t capacity,
     for (uint32_t i = 0; i < entries; ++i) {
         uint32_t e = toc + 32 + i * 48;
         uint16_t a = t290_smem_u16(p, e + 12), b = t290_smem_u16(p, e + 14);
-        if (!((a == 0 && b == 3) || (a == 3 && b == 0))) continue;
+        if (!((a == 0 && b == 4) || (a == 4 && b == 0))) continue;
         uint32_t off = t290_smem_u32(p, e), size = t290_smem_u32(p, e + 4);
         uint32_t alignment = t290_smem_u32(p, e + 16);
         if (size < 32 || !t290_smem_range(toc, off, size) ||

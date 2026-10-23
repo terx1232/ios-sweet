@@ -18,8 +18,8 @@ int main(void)
     assert(find(13,&v)==T290_SMEM_NO_PARTITION);
     unsigned toc=sizeof(memory)-4096, part=4096;
     memcpy(memory+toc,"$TOC",4);w32(toc+4,1);w32(toc+8,1);
-    w32(toc+32,part);w32(toc+36,4096);w16(toc+44,0);w16(toc+46,3);w32(toc+48,32);
-    memcpy(memory+part,"$PRT",4);w16(part+4,0);w16(part+6,3);
+    w32(toc+32,part);w32(toc+36,4096);w16(toc+44,0);w16(toc+46,4);w32(toc+48,32);
+    memcpy(memory+part,"$PRT",4);w16(part+4,0);w16(part+6,4);
     w32(part+8,4096);w32(part+12,80);w32(part+16,4096);
     w16(part+32,0xa5a5);w16(part+34,13);w32(part+36,32);
     assert(find(13,&v)==0 && v.offset==part+48 && v.size==32);
@@ -34,7 +34,7 @@ int main(void)
     assert(find(13,&v)==T290_SMEM_INVALID);
     memcpy(memory,clean,sizeof(memory));w32(toc+8,UINT32_MAX);
     assert(find(13,&v)==T290_SMEM_INVALID);
-    memcpy(memory,clean,sizeof(memory));w16(toc+46,2);
+    memcpy(memory,clean,sizeof(memory));w16(toc+46,3);
     assert(find(13,&v)==T290_SMEM_NO_PARTITION); /* never inspect another host */
     memcpy(memory,clean,sizeof(memory));w32(part+16,4032);
     w16(part+4064,0xa5a5);w16(part+4066,21);w32(part+4068,16);w16(part+4072,8);

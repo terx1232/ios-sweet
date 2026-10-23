@@ -4,7 +4,41 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff 2026-10-23: Bluetooth0140 INSTALLED, hardware boot pending
+## Active handoff 2026-10-23:0140 booted,0141 host-ID correction ready
+
+- Actual0140 nativeUSB capture completed:
+  ios-t290/usb-captures/0140/boot-20261023-230005-0140,
+  136 log replies plus full framebuffer3072064B and info121B.
+  SWEET BT allocation status=-3,size0. No HCI commands sent.
+  EAGL guards pass/enabling Mesa; motion hook/sender and orientation1/3
+  delivered, accelerometer client1 and live samples; USB continues.
+  driverkitd SIG9 reason namespace1/code7 logged; cause not established.
+- Found an implementation error:0140 parser selected private hosts0/3.
+  Qualcomm downstream smem.h enum says DSPS3,WCNSS4.0141 selects0/4,
+  tests explicitly reject3/accept4, logs TOC magic/version/count and
+  bounded partition identities.0140 status cannot prove controller off.
+  Primary ref/download outside git: vendor-smem.h/vendor-msm_smem.c
+  in dl/t290-bluetooth; README links exact source revision.
+-0141 portable parser ASan/UBSan non-PIE PASS20000 corrupt fixtures,
+  two ARM64 objects compile PASS, patch reverse-check PASS, full link0,
+  payload roundtrip and known shim/DTB PASS. QEMU60s no_panic_observed,
+  unknown_glyphs0; real radio probe disabled in QEMU.
+- dl/k-t290-0141 recovery64MiB SHA256
+  2ab7d974cc62cbaa77c5c60a54bd68456ef9531b2b65dff9e1e32d03239e0e91;
+  kernel9bdd7a5f2002681e0a5d0a030d8454e776de154dfbe51459078b0728d3478c83.
+  Graphics bridge/test unchanged0139. Helpers dl/t290-bluetooth/*0141*;
+  WSL work bluetooth0141{,-objects},qa0141/with-root.
+- User returned to Android. Backup0140 local/device/current SHA verified and0141 pushed.
+  ios-t290/backup-20261023-bluetooth0141/flash-0141.ps1 read-only preflight
+  PASS; obtain explicit0141 approval before -WriteApproved.
+  Current0140 fullpartitionSHA confirmed76d4d840...00e70.
+  **0141 NOT approved or flashed.** No SD userland update needed.
+- Bluetooth still requires real HCI response/Pronto startup/firmware relocation,
+  SMD ownership/handshake and iPadOS transport integration. No pairing claim.
+
+### Previous0140 preparation/installation (actual boot result above)
+
+### Historical handoff 2026-10-23: Bluetooth0140 INSTALLED, hardware boot pending
 
 - 0139 real boot: user confirmed working auto rotation. NativeUSB logs
   ios-t290/usb-captures/0139/boot-20261023-202209-0139 confirm normal

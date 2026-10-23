@@ -1,0 +1,37 @@
+--- a/bsd/dev/sweet_t290_smem_view.h
++++ b/bsd/dev/sweet_t290_smem_view.h
+@@ -39,7 +39,7 @@
+     for (uint32_t i = 0; i < entries; ++i) {
+         uint32_t e = toc + 32 + i * 48;
+         uint16_t a = t290_smem_u16(p, e + 12), b = t290_smem_u16(p, e + 14);
+-        if (!((a == 0 && b == 3) || (a == 3 && b == 0))) continue;
++        if (!((a == 0 && b == 4) || (a == 4 && b == 0))) continue;
+         uint32_t off = t290_smem_u32(p, e), size = t290_smem_u32(p, e + 4);
+         uint32_t alignment = t290_smem_u32(p, e + 16);
+         if (size < 32 || !t290_smem_range(toc, off, size) ||
+--- a/bsd/dev/sweet_t290_bluetooth.c
++++ b/bsd/dev/sweet_t290_bluetooth.c
+@@ -20,6 +20,23 @@
+     vm_offset_t va = ml_io_map(0x86300000UL, 0x100000);
+     if (!va) { printf("SWEET BT: SMEM map failed\n"); return; }
+     const volatile uint8_t *p = (const volatile uint8_t *)va;
++    /* Downstream SMEM host IDs: APPS0, Q6/ADSP2, DSPS3, WCNSS4.
++     * Report table identity separately from a missing host partition. */
++    uint32_t toc = 0x100000 - 4096;
++    printf("SWEET BT: SMEM version=%#x toc-magic=%#x version=%u entries=%u\n",
++        t290_smem_u32(p, 64 + 7*4), t290_smem_u32(p, toc),
++        t290_smem_u32(p, toc + 4), t290_smem_u32(p, toc + 8));
++    if (t290_smem_magic(p + toc, "$TOC")) {
++        uint32_t count = t290_smem_u32(p, toc + 8);
++        if (count <= (4096-32)/48) {
++            for (uint32_t i = 0; i < count; ++i) {
++                uint32_t e = toc + 32 + i*48;
++                printf("SWEET BT: partition%u hosts=%u/%u offset=%#x size=%#x cacheline=%u\n",
++                    i, t290_smem_u16(p, e+12), t290_smem_u16(p, e+14),
++                    t290_smem_u32(p,e), t290_smem_u32(p,e+4), t290_smem_u32(p,e+16));
++            }
++        }
++    }
+     T290SmemView table;
+     int err = t290_smem_wcnss_item(p, 0x100000, 13, &table);
+     printf("SWEET BT: read-only WCNSS allocation table status=%d size=%u\n", err, table.size);

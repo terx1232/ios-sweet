@@ -1,12 +1,11 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
-**SM-T290 active handoff:** read t290/NOTES.md first.0139 installed and
-user confirmed working automatic rotation. Current work: Bluetooth Pronto.
-0140 read-only WCNSS SMEM probe built/tested; QEMU60s PID1 alive/no observed
-panic. Android connected,0139 backup verified,0140 pushed, read-only preflight
-PASS. **0140 INSTALLED after explicit approval; full partition SHA256 readback PASS.**
-No Bluetooth HCI response/pairing yet. No clock changes or60FPS/app-fix claim.
-See t290/bluetooth/README.md, motion/README.md and active notes.
+**SM-T290 active handoff:** read t290/NOTES.md first.0139 rotation works.
+0140 installed and booted; nativeUSB log saved, BT probe status=-3. Found
+wrong probe hostID3(DSPS), downstream WCNSS=4.0141 fixes host selection and
+adds table diagnostics; host tests/ARM64 link/pack/QEMU60s PASS.0141 NOT
+flashed/approved. Android connected;0140 backup and0141 staging/preflight PASS. Bluetooth
+HCI/pairing still unimplemented. No clocks/60FPS/app-fix claims.
 
 ## Agent handoff / active work (2026-10-15, latest)
 
