@@ -6,6 +6,36 @@
 
 ## Active handoff 2026-10-22: FPS and missing UI, kernel 0135 preparation
 
+- **2026-10-23 CA-HALF1 HARDWARE PASS.** User in iPadOS, native COM7.
+  ca-half1/log0 USB packet missing512 bytes, raw/text preserved; log1-4
+  complete. Xfer5/5 consumed. All four half-vbo48 and half-client48-indexed
+  colors match within1 in BOTH ES2/ES3; test exit0, launcher enables Mesa.
+  Full frame saved ca-half1/screen.{t290,png}, still black with purple text.
+  Actual CA attrib0 float4, attrib1 half4 normalized, stride48, client memory;
+  safe VM reads work, first colors(1,1,1,1). Later purple color is already
+  in client data(~.12,.06,.12,.4), not proof of GPU color corruption.
+  No captured post-call GL error or missing slot. Half vertices not culprit
+  in covered draws. Does not establish texture pixels or blend correctness.
+- User asked about matching Android clocks. Live CPUCLK cfg0x501, PLL mode7,
+  L0x59: sourceA53, div1, 89*19.2=1708.8MHz; 4/4 cores online. GPU logged
+  400MHz. Stock fdt.dts cpufreq table ends0x1ec300kHz=2016MHz; GPU bin0
+  max0x26be3680=650MHz (other bins lower). Full Android-like DVFS/CPR/thermal
+  policy absent. CPU boost path raisesS5 to885mV; GPU only200/400GPLL0dividers
+  currently supported. Do not change just a frequency constant or report
+  max table values as actual live clocks. No clock/recovery changes made.
+- **NEXT TEST BUILT, NOT STAGED:** CPU-written real icon surfaces 120x120,
+  format0/inferredRGBA and BGRA, actual kernel512-byte rows, quadrant colors
+  + alpha, two CPU updates while keeping the same GPU import bound. Prior
+  CPU-update coverage was padded LA08; row-layout tests primarily GPU writes.
+  This tests direct imports/cache visibility before a workaround is chosen.
+  211 GLI calls ABI PASS, ARM64/iOS16/signature/entitlements PASS,10s local.
+  /home/kirill/t290-toolchain/build-cpu-icons1, Windows dl/cpu-icons1/eagltest
+  SHA256 8a957c2c0bf4761f9087e16297a847759af5afafe03dfac334d2ce4218b3578d.
+  Bridge hash identical to installed009be071..., no new bridge needed.
+  Next Android: -Result currentca-half1 saves old bridge/test/log; stage
+  ONLY this test with backup GETs, full SD readback, manual boot+USB log.
+  Guard remains enabled. No workaround or UI/FPS improvement claimed.
+
 - **2026-10-23 CA-HALF1 STAGED, awaiting manual iPadOS boot.** Android USB
   enumerated but ADB initially absent; restarting server with ADB_LIBUSB=0
   restored root connection. Previous ca-color1 request confirmed done3/3;

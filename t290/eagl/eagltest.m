@@ -311,6 +311,59 @@ static int test_luminance_alpha(id ctx, struct Macro *m, GLuint targetFbo, unsig
         }
     }
     CALL(63, void, (void *, GLenum), 0x0be2);
+    /* Actual CA icon surfaces: 120x120, unspecified RGBA or BGRA, with
+     * 512-byte GPU-aligned rows on this kernel. Previous CPU update tests
+     * covered padded LA08 mirrors, but not these direct imports. */
+    CALL(606, void, (void *, GLint, GLint), glyph, 0);
+    const uint8_t quadrants[4][4] = {{255,0,0,255}, {0,255,0,255},
+        {0,0,255,255}, {64,32,128,128}};
+    for (unsigned bgra = 0; bgra < 2; bgra++) {
+        IOSurfaceRef icon = IOSurfaceCreate((__bridge CFDictionaryRef)@{
+            (__bridge id)kIOSurfaceWidth: @120, (__bridge id)kIOSurfaceHeight: @120,
+            (__bridge id)kIOSurfaceBytesPerElement: @4,
+            (__bridge id)kIOSurfaceBytesPerRow: @480,
+            (__bridge id)kIOSurfacePixelFormat: @(bgra ? 0x42475241 : 0),
+            (__bridge id)kIOSurfaceIsGlobal: @YES
+        });
+        if (!icon) return 80;
+        GLuint iconTex = 0;
+        CALL(98, void, (void *, GLsizei, GLuint *), 1, &iconTex);
+        CALL(5, void, (void *, GLenum, GLuint), 0x0de1, iconTex);
+        if (![ctx attachImage:0x0de1 toCoreSurface:icon invertedRender:NO]) return 81;
+        CALL(304, void, (void *, GLenum, GLenum, GLint), 0x0de1, 0x2801, 0x2600);
+        CALL(304, void, (void *, GLenum, GLenum, GLint), 0x0de1, 0x2800, 0x2600);
+        CALL(304, void, (void *, GLenum, GLenum, GLint), 0x0de1, 0x2802, 0x812f);
+        CALL(304, void, (void *, GLenum, GLenum, GLint), 0x0de1, 0x2803, 0x812f);
+        size_t iconStride = IOSurfaceGetBytesPerRow(icon);
+        for (unsigned round = 0; round < 2; round++) {
+            if (IOSurfaceLock(icon, 0, NULL)) return 82;
+            uint8_t *base = IOSurfaceGetBaseAddress(icon);
+            for (unsigned y = 0; y < 120; y++) for (unsigned x = 0; x < 120; x++) {
+                const uint8_t *rgba = quadrants[((x >= 60) + 2 * (y >= 60) + round) % 4];
+                uint8_t *dest = base + y * iconStride + x * 4;
+                dest[0] = rgba[bgra ? 2 : 0]; dest[1] = rgba[1];
+                dest[2] = rgba[bgra ? 0 : 2]; dest[3] = rgba[3];
+            }
+            if (IOSurfaceUnlock(icon, 0, NULL)) return 83;
+            /* Keep the import bound across the second CPU update. */
+            CALL(65, void, (void *, GLenum, GLint, GLsizei), 4, 0, 3);
+            const GLint points[4][2] = {{16,16}, {48,16}, {24,40}, {40,40}};
+            for (unsigned q = 0; q < 4; q++) {
+                uint8_t pixel[4] = {0};
+                CALL(237, void, (void *, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void *),
+                    points[q][0], points[q][1], 1, 1, 0x1908, 0x1401, pixel);
+                GLenum err = CALL(102, GLenum, (void *));
+                printf("CPU icon %s stride %zu round %u quadrant %u RGBA %u,%u,%u,%u error %#x\n",
+                    bgra ? "BGRA" : "inferred-RGBA", iconStride, round, q,
+                    pixel[0], pixel[1], pixel[2], pixel[3], err);
+                if (err) return 84;
+                if (!getenv("SWEET_FAKE")) for (unsigned k = 0; k < 4; k++)
+                    if (abs(pixel[k] - quadrants[(q + round) % 4][k]) > 2) return 85;
+            }
+        }
+        CALL(59, void, (void *, GLsizei, const GLuint *), 1, &iconTex);
+        CFRelease(icon);
+    }
     CALL(195, void, (void *, GLenum, GLint), 0x0cf5, 4);
     CALL(59, void, (void *, GLsizei, const GLuint *), 1, &upload);
     CALL(600, void, (void *, GLuint), 0);
