@@ -1,0 +1,165 @@
+/* SM-T290 KXTJ3: board sensor config selects bus 4, address 0x0e,
+ * GPIO14/15. Android's SSC owns this bus; use only with SSC inactive in XNU.
+ * No address scan, power-rail changes, or DSP commands. Probe WHO_AM_I before
+ * configuring the sensor. All clock stretching has a bounded deadline.
+ */
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/errno.h>
+#include <kern/clock.h>
+#include <machine/machine_routines.h>
+
+extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
+int sweet_t290_accel_init(void);
+int sweet_t290_accel_read(int32_t xyz[3]);
+void sweet_t290_accel_stop(void);
+
+static vm_offset_t pins[2];
+static uint32_t saved_cfg[2], saved_out[2];
+static bool mapped, enabled;
+enum { SDA, SCL, ADDR = 0x0e };
+
+static uint32_t get(unsigned p, unsigned offset)
+{
+	return *(volatile uint32_t *)(pins[p] + offset);
+}
+static void put(unsigned p, unsigned offset, uint32_t value)
+{
+	*(volatile uint32_t *)(pins[p] + offset) = value;
+	__asm__ volatile("dsb sy" ::: "memory");
+}
+static void accel_delay(void)
+{
+	uint64_t delta;
+	nanoseconds_to_absolutetime(5000, &delta);
+	uint64_t end = mach_absolute_time() + delta;
+	while (mach_absolute_time() < end) { }
+}
+/* Open drain, 2mA, using the observed board pull-up setting. Never drive high. */
+static void line(unsigned p, bool release)
+{
+	put(p, 4, 0);
+	put(p, 0, 3U | (release ? 0 : 1U << 9));
+}
+static int clock_high(void)
+{
+	uint64_t delta;
+	nanoseconds_to_absolutetime(100000, &delta);
+	uint64_t end = mach_absolute_time() + delta;
+	line(SCL, true);
+	while (!(get(SCL, 4) & 1)) {
+		if (mach_absolute_time() >= end) return ETIMEDOUT;
+	}
+	accel_delay();
+	return 0;
+}
+static int start(void)
+{
+	line(SDA, true);
+	int e = clock_high();
+	if (e) return e;
+	if (!(get(SDA, 4) & 1)) return EBUSY;
+	line(SDA, false); accel_delay(); line(SCL, false); accel_delay();
+	return 0;
+}
+static void stop(void)
+{
+	line(SDA, false); accel_delay();
+	(void)clock_high(); line(SDA, true); accel_delay();
+}
+static int write_byte(uint8_t value)
+{
+	for (int i = 7; i >= 0; --i) {
+		line(SDA, (value >> i) & 1); accel_delay();
+		int e = clock_high(); if (e) return e;
+		line(SCL, false); accel_delay();
+	}
+	line(SDA, true); accel_delay();
+	int e = clock_high(); if (e) return e;
+	bool ack = !(get(SDA, 4) & 1);
+	line(SCL, false); accel_delay();
+	return ack ? 0 : ENXIO;
+}
+static int read_byte(uint8_t *value, bool ack)
+{
+	uint8_t v = 0;
+	line(SDA, true);
+	for (unsigned i = 0; i < 8; ++i) {
+		accel_delay(); int e = clock_high(); if (e) return e;
+		v = (uint8_t)((v << 1) | (get(SDA, 4) & 1));
+		line(SCL, false); accel_delay();
+	}
+	line(SDA, !ack); accel_delay();
+	int e = clock_high();
+	line(SCL, false); line(SDA, true); accel_delay();
+	*value = v;
+	return e;
+}
+static int read_regs(uint8_t reg, uint8_t *bytes, unsigned count)
+{
+	int e = start();
+	if (!e) e = write_byte(ADDR << 1);
+	if (!e) e = write_byte(reg);
+	if (!e) e = start();
+	if (!e) e = write_byte((ADDR << 1) | 1);
+	for (unsigned i = 0; !e && i < count; ++i)
+		e = read_byte(&bytes[i], i + 1 < count);
+	stop();
+	return e;
+}
+static int write_reg(uint8_t reg, uint8_t value)
+{
+	int e = start();
+	if (!e) e = write_byte(ADDR << 1);
+	if (!e) e = write_byte(reg);
+	if (!e) e = write_byte(value);
+	stop();
+	return e;
+}
+void sweet_t290_accel_stop(void)
+{
+	if (!mapped) return;
+	if (enabled) (void)write_reg(0x1b, 0x40); /* standby */
+	enabled = false;
+	for (unsigned i = 0; i < 2; ++i) {
+		put(i, 4, saved_out[i] & 2);
+		put(i, 0, saved_cfg[i]);
+	}
+}
+int sweet_t290_accel_init(void)
+{
+	if (enabled) return 0;
+	for (unsigned i = 0; i < 2; ++i) {
+		if (!pins[i]) pins[i] = ml_io_map(0x01000000UL + (14 + i) * 0x1000, 0x1000);
+		if (!pins[i]) return ENOMEM;
+		saved_cfg[i] = get(i, 0); saved_out[i] = get(i, 4);
+	}
+	mapped = true;
+	line(SDA, true); line(SCL, true); accel_delay();
+	uint8_t id = 0;
+	int e = read_regs(0x0f, &id, 1);
+	printf("SWEET ACCEL: KXTJ3 GPIO14/15 addr=0x0e probe=%d id=0x%02x\n", e, id);
+	if (!e && id != 0x35) e = ENODEV;
+	if (!e) e = write_reg(0x1b, 0x40); /* standby, high resolution, +/-2g */
+	if (!e) e = write_reg(0x21, 0x01); /* DATA_CTRL: 25Hz */
+	if (!e) e = write_reg(0x1b, 0xc0); /* operating */
+	if (e) { sweet_t290_accel_stop(); return e; }
+	enabled = true;
+	return 0;
+}
+int sweet_t290_accel_read(int32_t xyz[3])
+{
+	if (!enabled) return ENODEV;
+	uint8_t b[6];
+	int e = read_regs(0x06, b, sizeof(b));
+	if (e) return e;
+	int32_t raw[3];
+	for (unsigned i = 0; i < 3; ++i)
+		raw[i] = (int16_t)((uint16_t)b[2*i] | (uint16_t)b[2*i+1] << 8);
+	/* Android config axes (+Y,-X,+Z); CoreMotion gravity has opposite sign.
+	 * 12bit samples are left aligned: 16384 raw counts/g -> 16.16 g.
+	 * Multiplication, not signed left shift (undefined for negative samples).
+	 */
+	xyz[0] = -raw[1] * 4; xyz[1] = raw[0] * 4; xyz[2] = -raw[2] * 4;
+	return 0;
+}

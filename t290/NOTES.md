@@ -4,32 +4,41 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff 2026-10-23: PRIORITY FPS and app stability;0137 prepared
+## Active handoff 2026-10-23: accelerometer requested;0138 prepared
 
-- **0137 INSTALLED after explicit user approval (2026-10-23).** Guarded
-  flash-0137.ps1 -WriteApproved exit0; full64MiB partition readback SHA256
-  87100f2dbc7e3eeec6744e5e3c5f353051b61ca9897d9b54e6670c9fa79ca576 PASS.
-  Previous0136 retained in ios-t290/backup-20261023-gpu0137. No reboot command
-  sent. Next manual iPadOS boot applies staged bridge/test/marker0; collect
-  native USB with dl/k-t290-0137/wait-collect.py. Hardware result pending.
+- User requested accelerometer-driven auto rotation; previous FPS/app task
+  remains unfinished. Android ADB/root connected for read-only inspection.
+- Recovery0137 installed with explicit approval; full64MiB SHA87100f2d...9ca576
+  PASS. Native boot captured usb-captures/0137/boot-20261023-182250-0137 but
+  collector drained early, insufficient guard/app evidence. SD update8/8 DONE;
+  old GETs recovered to dl/k-t290-0137/before. No new SD request staged.
+- Live sensor facts: KXTJ3, no gyro; msm8937/SoC354/MTP config bus4/0x0e/IRQ42,
+  axes+Y,-X,+Z; FDT QUP0x078b8000 maps GPIO14/15, Linux bus disabled/SSC-owned.
+  Persisted sns.reg contains matching KXTJ3 UUID and bus4/0x0e. All dumps
+  dl/t290-motion outside git. See t290/motion/README.md for sources/limitations.
+- Patch0138 adds opt-in bounded open-drain I2C and standard HID accelerometer
+  service: checks WHO_AM_I before configuring25Hz +/-2g; restores pins on
+  probe failure, stops after5 read errors. No rails/DSP commands. Actual
+  sensor readings, iPadOS subscriber/matching and AUTO ROTATION NOT VERIFIED.
+- Three ARM64 objects compile PASS, full relink exit0, patch reverse-check
+  PASS. Final recovery SHA df03715d488c8216e7cb9c9f3b03d1610286acb84f7af6f7140d5c6f8acba979,
+  kernel d046989990213a73aaf78143aa43553cd5b673abca9a3cee6e9e56b6d0d41c8d.
+  Payload roundtrip PASS, shim/DTB unchanged. Graphics identical0137; only
+  kernel needs testing. t290accel=1 opt-in boot arg, omitted under QEMU.
+- Final QEMU60s PASS: /home/kirill/t290-local-kernel/qa0138-r1/with-root,
+  result no_panic_observed/unknown_glyphs0, PID1 running plus6 still-alive
+  messages. Sensor disabled in QEMU; NOT physical sensor or UI validation.
+- 0138 image pushed/verified; current0137 fullbackup verified at
+  ios-t290/backup-20261023-accel0138/recovery-before-0138.img. Guarded
+  flash-0138.ps1 read-only preflight PASS. NO0138 PARTITION WRITE; requires
+  explicit user approval after final checks. Approval0137 does not cover0138.
+- Helpers dl/t290-motion/{build.sh,relink0138.py,pack0138.sh,qemu0138-r1.sh,
+  make-patch.py}; objects /home/kirill/t290-local-kernel/motion-objects, full
+  link /home/kirill/t290-local-kernel/motion0138. Needs native USB collector
+  for new0138 boot; first verify WHO_AM_I and samples/subscriber count, then
+  confirm axes in known poses and trace userland orientation as needed.
 
-- **Android connected;0137 prepared for approval, NOT written.** Recovered
-  ca-passes1 old GETs first (done8/8). Backed up current0136 full64MiB to
-  ios-t290/backup-20261023-gpu0137/recovery-before-0137.img; local hash and
-  partition both a21119db...222914. Pushed0137 image to Android tmp, SHA
-  87100f2d...9ca576 matches. Guarded flash-0137.ps1 read-only preflight PASS;
-  requires explicit0137 approval before -WriteApproved. Do not reboot yet.
-- Staged new8op SD request (current bridge/test/marker/capture/log GETs into
-  dl/k-t290-0137/before, new bridge/test and marker0 PUTs). Full84582914B
-  readback PASS SHA a5a04d1420ad74da75479657831c35cc50feb211b7e2cb750ebaf773f474e5d7.
-  New test REQUIRES0137; currently installed recovery still0136.
-- QEMU corrected60s CortexA53/GICv2 smoke PASS: result no_panic_observed,
-  unknown_glyphs0; fb.txt confirms signed static userspace PID1 running and
-  six still-alive messages. This checks kernel boot only, NOT tablet GPU/UI.
-  Initial missing-md0 harness panic was resolved by attaching signed ramdisk.
-  Results /home/kirill/t290-local-kernel/qa0137/with-root; helper dl/qemu0137.sh.
-- Latest user confirms Android; ADB get-state device. Prepared0137 approval
-  is the next action; do NOT write partition without explicit approval.
+### Earlier FPS/app observations (hardware retest pending)
 
 - User explicitly postponed remaining UI effects/Metal and wants faster UI
   and apps to stop closing. Also explicitly dropped clock changes: DO NOT

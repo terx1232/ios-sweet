@@ -1,25 +1,15 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
-- **0137 INSTALLED after explicit user approval (2026-10-23).** Guarded
-  flash-0137.ps1 -WriteApproved exit0; full64MiB partition readback SHA256
-  87100f2dbc7e3eeec6744e5e3c5f353051b61ca9897d9b54e6670c9fa79ca576 PASS.
-  Previous0136 retained in ios-t290/backup-20261023-gpu0137. No reboot command
-  sent. Next manual iPadOS boot applies staged bridge/test/marker0; collect
-  native USB with dl/k-t290-0137/wait-collect.py. Hardware result pending.
-
-**Active SM-T290 work (2026-10-23):** see `t290/NOTES.md` and `t290/GPU.md`.
-User now prioritizes faster UI and apps not closing; clock work cancelled.
-Installed recovery0136, ca-passes1 GPU guard passed on real ES2/ES3; missing
-UI effects and app crashes remain. New0137 kernel fixes explicit zero
-IOSurfaceAllocSize auto-allocation; bridge adds bounded shader failure logs
-and heavy texture capture will be disabled. Actual-layout ASan/UBSan PASS,
-ARM64/full local build PASS, corrected60s QEMU PID1 alive without observed
-panic (kernel boot only, NOT UI/GPU proof). Full64MiB0137 image prepared,
-SHA87100f2d...9ca576, pushed and verified; current0136 backed up and verified.
-New0137 bridge/test SD request staged with full readback PASS. Android ADB
-connected. Recovery0137 NOT written; explicit approval required next.
-No measured speedup or60FPS established. Settings/Photos SIGABRT exception
-reasons and Safari hang require next hardware logs; do not claim fixed.
+**Active SM-T290 work (2026-10-23):** see `t290/NOTES.md` first.
+User requested accelerometer-driven automatic rotation. Live Android config:
+KXTJ3 bus4/0x0e, GPIO14/15, axes+Y,-X,+Z, SSC-owned.0138 test image prepared:
+opt-in bounded I2C driver and standard HID accelerometer service. ARM64/full
+link PASS; final60s QEMU PID1 alive without observed panic. Sensor/userland matching
+and AUTO ROTATION NOT VERIFIED OR COMPLETE. Recovery0137 remains installed
+(approved, full SHA readback PASS), its SD update8/8 complete.0138 pushed,
+backup/preflight verified, NOT written; requires explicit0138 approval.
+Faster UI/app stability remains pending hardware logs; no60FPS or app fix
+claimed. Clock work cancelled. Exact hashes/next steps in t290/NOTES.md.
 
 ## Agent handoff / active work (2026-10-15, latest)
 
