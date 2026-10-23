@@ -1,5 +1,12 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
+- **0137 INSTALLED after explicit user approval (2026-10-23).** Guarded
+  flash-0137.ps1 -WriteApproved exit0; full64MiB partition readback SHA256
+  87100f2dbc7e3eeec6744e5e3c5f353051b61ca9897d9b54e6670c9fa79ca576 PASS.
+  Previous0136 retained in ios-t290/backup-20261023-gpu0137. No reboot command
+  sent. Next manual iPadOS boot applies staged bridge/test/marker0; collect
+  native USB with dl/k-t290-0137/wait-collect.py. Hardware result pending.
+
 **Active SM-T290 work (2026-10-23):** see `t290/NOTES.md` and `t290/GPU.md`.
 User now prioritizes faster UI and apps not closing; clock work cancelled.
 Installed recovery0136, ca-passes1 GPU guard passed on real ES2/ES3; missing

@@ -6,6 +6,13 @@
 
 ## Active handoff 2026-10-23: PRIORITY FPS and app stability;0137 prepared
 
+- **0137 INSTALLED after explicit user approval (2026-10-23).** Guarded
+  flash-0137.ps1 -WriteApproved exit0; full64MiB partition readback SHA256
+  87100f2dbc7e3eeec6744e5e3c5f353051b61ca9897d9b54e6670c9fa79ca576 PASS.
+  Previous0136 retained in ios-t290/backup-20261023-gpu0137. No reboot command
+  sent. Next manual iPadOS boot applies staged bridge/test/marker0; collect
+  native USB with dl/k-t290-0137/wait-collect.py. Hardware result pending.
+
 - **Android connected;0137 prepared for approval, NOT written.** Recovered
   ca-passes1 old GETs first (done8/8). Backed up current0136 full64MiB to
   ios-t290/backup-20261023-gpu0137/recovery-before-0137.img; local hash and
