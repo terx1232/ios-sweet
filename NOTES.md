@@ -5,7 +5,9 @@ Bluetooth work paused at user request.0144 hardware firmware-file SHA checks
 PASS, no firmware execution/HCI.0145 adds shared graphics budget, bounded
 yielding fence waits, mapping lock/error fixes and telemetry. Local tests PASS;
 final rebuild/QEMU60s and Android read-only preflight PASS.0144 backed up;0145 NOT
-installed and NOT approved. Read t290/NOTES.md first.
+installed. User explicitly APPROVED0145, but ADB disappeared before the
+first preflight command; no partition write occurred. Waiting for Android USB
+reconnection, then rerun flash-0145.ps1 -WriteApproved. Read t290/NOTES.md first.
 
 **Previous handoff:** read t290/NOTES.md first.0143 hardware confirms
 SCM64/PIL APIs available; WCNSS heap empty, both SMD banks absent.0144 adds
