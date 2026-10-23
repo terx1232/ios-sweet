@@ -4,7 +4,7 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff 2026-10-23:0140 booted,0141 host-ID correction ready
+## Active handoff 2026-10-23:0141 INSTALLED, actual boot pending
 
 - Actual0140 nativeUSB capture completed:
   ios-t290/usb-captures/0140/boot-20261023-230005-0140,
@@ -30,9 +30,13 @@
   WSL work bluetooth0141{,-objects},qa0141/with-root.
 - User returned to Android. Backup0140 local/device/current SHA verified and0141 pushed.
   ios-t290/backup-20261023-bluetooth0141/flash-0141.ps1 read-only preflight
-  PASS; obtain explicit0141 approval before -WriteApproved.
+  PASS; subsequent -WriteApproved exit0 after explicit user approval.
+  Full64MiB partition readback PASS2ab7d974...e0e91, result JSON saved.
   Current0140 fullpartitionSHA confirmed76d4d840...00e70.
-  **0141 NOT approved or flashed.** No SD userland update needed.
+  **0141 INSTALLED/verified.** No SD userland update needed.
+  Next user manual boot via recovery menu; collect with
+  dl/t290-bluetooth/wait-collect0141.py then collect-more0141.py.
+  Inspect TOC identity and WCNSS channel status. No reboot sent.
 - Bluetooth still requires real HCI response/Pronto startup/firmware relocation,
   SMD ownership/handshake and iPadOS transport integration. No pairing claim.
 

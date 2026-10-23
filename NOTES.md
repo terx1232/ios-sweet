@@ -3,8 +3,8 @@
 **SM-T290 active handoff:** read t290/NOTES.md first.0139 rotation works.
 0140 installed and booted; nativeUSB log saved, BT probe status=-3. Found
 wrong probe hostID3(DSPS), downstream WCNSS=4.0141 fixes host selection and
-adds table diagnostics; host tests/ARM64 link/pack/QEMU60s PASS.0141 NOT
-flashed/approved. Android connected;0140 backup and0141 staging/preflight PASS. Bluetooth
+adds table diagnostics; host tests/ARM64 link/pack/QEMU60s PASS.0141 INSTALLED after explicit approval, full partition SHA256 readback PASS.
+Next manual iPadOS boot and native USB capture. Android connected;0140 backup and0141 staging/preflight PASS. Bluetooth
 HCI/pairing still unimplemented. No clocks/60FPS/app-fix claims.
 
 ## Agent handoff / active work (2026-10-15, latest)
