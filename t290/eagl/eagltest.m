@@ -482,7 +482,7 @@ static int test_ca_color(struct Macro *m, GLuint targetFbo)
     GLint image = CALL(625, GLint, (void *, GLuint, const char *), program, "image");
     GLint sample = CALL(625, GLint, (void *, GLuint, const char *), program, "sample_image");
     if (matrix < 0 || image < 0 || sample < 0) return 72;
-    const GLfloat transform[16] = {.75f,0,0,0, 0,.75f,0,0, 0,0,1,0, 0,0,0,1};
+    GLfloat transform[16] = {.75f,0,0,0, 0,.75f,0,0, 0,0,1,0, 0,0,0,1};
     CALL(620, void, (void *, GLint, GLsizei, GLboolean, const GLfloat *), matrix, 1, 0, transform);
     CALL(606, void, (void *, GLint, GLint), image, 1);
     CALL(606, void, (void *, GLint, GLint), sample, 0);
@@ -588,6 +588,48 @@ static int test_ca_color(struct Macro *m, GLuint targetFbo)
     GLenum err = CALL(102, GLenum, (void *));
     printf("CA intermediate RGBA %u,%u,%u,%u error %#x\n", pixel[0], pixel[1], pixel[2], pixel[3], err);
     if (err || (!getenv("SWEET_FAKE") && (pixel[0] || pixel[1] != 255 || pixel[2] || pixel[3] != 255))) return 76;
+    /* Real missing-program path, with the native CA state indirection and
+     * pixel-space texcoords. No replacement shader is supplied by this test. */
+    void (*setCA)(void *, const GLfloat *) = dlsym(RTLD_DEFAULT, "T290EAGLTestCA");
+    if (!setCA) return 77;
+    struct { uint64_t pad[2]; uint32_t function; } caState = {{0}, 89};
+    struct { uint64_t pad[2]; void *state; } caContext = {{0}, &caState};
+    _Static_assert(offsetof(__typeof__(caState), function) == 0x10 &&
+        offsetof(__typeof__(caContext), state) == 0x10, "native CA function indirection");
+    CALL(342, void, (void *, GLenum), 0x84c0);
+    CALL(5, void, (void *, GLenum, GLuint), 0x0de1, textures[1]);
+    CALL(513, void, (void *, GLuint), 2);
+    CALL(485, void, (void *, GLuint, GLfloat, GLfloat, GLfloat, GLfloat), 2, 32, 32, 0, 1);
+    CALL(342, void, (void *, GLenum), 0x84c1);
+    CALL(600, void, (void *, GLuint), 0);
+    const GLfloat colorMatrix[20] = {0,0,0,0, .25f,.5f,.75f,1, 0,0,0,0, 0,0,0,0, 0,0,0,0};
+    const uint8_t expected[][4] = {{0,255,0,255}, {0,0,0,0}, {64,128,191,255}, {255,0,255,255}, {0,0,0,0}};
+    for (unsigned c = 0; c < 5; c++) {
+        caState.function = c == 2 ? 20 : c == 4 ? 61 : 89;
+        setCA(&caContext, c == 2 ? colorMatrix : NULL);
+        /* CA mutates its matrix between draws without a GL uniform upload
+         * when it has no program. A saved copy would draw case1 incorrectly. */
+        transform[12] = c == 1 ? 4 : 0;
+        CALL(672, void, (void *, GLenum, GLuint), 0x8d40, c == 3 ? intermediateFbo : targetFbo);
+        CALL(12, void, (void *, GLfloat, GLfloat, GLfloat, GLfloat), c == 3 ? 1 : 0, 0, c == 3 ? 1 : 0, c == 3 ? 1 : 0);
+        CALL(10, void, (void *, GLbitfield), 0x4000);
+        CALL(65, void, (void *, GLenum, GLint, GLsizei), 4, 0, 3);
+        CALL(237, void, (void *, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void *),
+            32, 32, 1, 1, 0x1908, 0x1401, pixel);
+        GLint activeProgram = -1, activeUnit = -1, attrib2 = -1;
+        CALL(104, void, (void *, GLenum, GLint *), 0x8b8d, &activeProgram);
+        CALL(104, void, (void *, GLenum, GLint *), 0x84e0, &activeUnit);
+        CALL(516, void, (void *, GLuint, GLenum, GLint *), 2, 0x8622, &attrib2);
+        err = CALL(102, GLenum, (void *));
+        printf("CA missing-program case%u RGBA %u,%u,%u,%u error %#x restored program%d unit%#x attrib2%d\n",
+            c, pixel[0], pixel[1], pixel[2], pixel[3], err, activeProgram, activeUnit, attrib2);
+        if (err || activeProgram || activeUnit != 0x84c1 || attrib2) return 78;
+        if (!getenv("SWEET_FAKE")) for (unsigned k = 0; k < 4; k++)
+            if (abs(pixel[k] - expected[c][k]) > 2) return 79;
+    }
+    setCA(NULL, NULL);
+    transform[12] = 0;
+    CALL(672, void, (void *, GLenum, GLuint), 0x8d40, targetFbo);
     CALL(342, void, (void *, GLenum), 0x84c0);
     CALL(643, void, (void *, GLsizei, const GLuint *), 1, &vbo);
     CALL(673, void, (void *, GLsizei, const GLuint *), 1, &intermediateFbo);

@@ -142,6 +142,8 @@ def decode(source, output):
         for h, payload in records(source.read_bytes()):
             item = dict(h)
             item['kind_name'] = KINDS.get(h['kind'], 'unknown')
+            if h['reserved2']:
+                item['ca_function'] = h['reserved2'] - 1
             item['operation'] = ({0: 'primitives', 1: 'clear', 2: 'blit'}.get(h['reserved0'], 'unknown')
                                  if h['reserved1'] == 1 else 'unknown')
             name = f'{h["sequence"]:03}-{item["kind_name"]}-draw{h["draw"]}-fbo{h["fbo"]}-tex{h["texture"]}'

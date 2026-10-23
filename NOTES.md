@@ -8,26 +8,19 @@ client memory and an aligned GPU backing. Full kernel linked locally in WSL
 full partition SHA readback PASS,0135 backed up. First0136 boot verified:
 8/8 SD operations, real ES2+ES3 client-memory GPU tests PASS, guard enabled.
 Icons restored; wallpaper/text/effects still broken. Capture143/143 records
-valid after fixing log-slice joining. See active t290/NOTES.md for hashes, local
-build recipe and pending hardware tests. Last tested0135 boot had active
-GPU compositor with widely missing UI content.
-User priority is content first, FPS later. Real CA shader/texture trace and
-complete home-screen USB screenshot saved. CA-like constant/u8 vertex color,
-matrix and offscreen-pass tests PASS on real ES2 and ES3. Actual CA binary
-uses half-float colors in 48-byte client vertices; matching VBO/client-indexed
-tests PASS on real ES2/ES3 (ca-half1, ae44121); real CA client values valid.
-CPU-written 120x120 RGBA/BGRA icon import/update test PASS:32 pixel samples,
-both APIs, both CPU updates. Real interface still black/purple. Prepared
-bounded real-CA texture/FBO/state capture with checksummed USB log streaming
-(dl/ca-capture1,7355d35) ran on hardware:69 records decoded,72 rejected because
-kernel log lines truncate near256B. Three format0 inputs are all zero. New
-180-character capture stream built (dl/ca-capture2), NOT staged. Reference
-review found missing IOSurfaceAddress creation support; see eagl/REFERENCES.md.
-This is a candidate cause, not a verified UI fix. Marker2, guard intact.
+valid after fixing log-slice joining. New ca-passes1 library/test STAGED8ops
+on microSD, full readback SHA d8981a44...f2dbcb. Old backup GETs recovered.
+User requested manual iPadOS boot; Android at staging completion.
+Replacement programs for narrow missing CA functions20/89; actual16.7 UUID
+and vtable targets checked, no function_supported override. Host software
+ES2.0/ES3.0 shader pixels PASS,237 GLI signatures/signatures PASS. Hardware
+guard and actual UI NOT yet tested. No recovery update needed.
+User priority is content first, FPS later. See active t290/NOTES.md for exact
+hashes, build recipe, native USB capture and next hardware checks. Marker2
+and launcher test guard retained. Other CA effects and Metal not implemented.
 Live CPU config selects ~1.7088GHz, all4 cores; GPU400MHz. Stock tables have
 CPU2016MHz/GPU650MHz (GPU bin0); full DVFS not implemented, no clocks changed.
-No visual fix claimed. Zero-time recount panic recurred on CPU2, unresolved.
-No reflash needed.
+Zero-time recount panic previously recurred on CPU2, unresolved.
 
 ## Agent handoff / active work (2026-10-15, latest)
 

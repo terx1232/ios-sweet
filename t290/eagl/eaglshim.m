@@ -10,6 +10,9 @@
 #include <fcntl.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
+#include <mach-o/dyld.h>
+#include <mach-o/loader.h>
+#include <math.h>
 #include <objc/runtime.h>
 #include <pthread.h>
 #include <stdarg.h>
@@ -72,6 +75,12 @@ static struct {
     void (*CompressedTexImage2D)(GLenum, GLint, GLenum, GLsizei, GLsizei, GLint, GLsizei, const void *);
     void (*ShaderSource)(GLuint, GLsizei, const GLchar *const *, const GLint *);
     void (*AttachShader)(GLuint, GLuint);
+    GLuint (*CreateShader)(GLenum), (*CreateProgram)(void);
+    void (*CompileShader)(GLuint), (*LinkProgram)(GLuint), (*UseProgram)(GLuint);
+    void (*BindAttribLocation)(GLuint, GLuint, const GLchar *);
+    void (*Uniform1i)(GLint, GLint), (*Uniform2f)(GLint, GLfloat, GLfloat);
+    void (*Uniform4fv)(GLint, GLsizei, const GLfloat *);
+    void (*UniformMatrix4fv)(GLint, GLsizei, GLboolean, const GLfloat *);
     GLint (*GetUniformLocation)(GLuint, const GLchar *);
     void (*GetTexParameteriv)(GLenum, GLenum, GLint *);
     void (*GetTexLevelParameteriv)(GLenum, GLint, GLenum, GLint *);
@@ -242,6 +251,7 @@ static inline void image_mark(T290SurfaceImage *img, size_t y0, size_t y1)
 @property(nonatomic, weak) T290SurfaceImage *display;                  /* surface 1 (scanout) */
 @property(nonatomic, strong) NSMutableIndexSet *mipmapped;             /* generated complete chains */
 @property(nonatomic, strong) NSMutableDictionary<NSNumber *, NSMutableDictionary *> *mipLevels;
+@property(nonatomic, strong) NSMutableDictionary<NSNumber *, NSNumber *> *caMatrixLocations;
 @end
 @implementation T290Sharegroup
 - (void)dealloc { if (_root) mesa_destroy(_root); }
@@ -269,6 +279,9 @@ enum { DRAW_PRIMITIVES, DRAW_CLEAR, DRAW_ALL_ROWS };
     uint64_t _waitTicks;
     unsigned _waitCount, _flushCount, _drawCount;
     unsigned _drawKind;
+    GLuint _program, _caCopyProgram, _caColorProgram;
+    BOOL _caCopyFailed, _caColorFailed;
+    const GLfloat *_caMatrix;
     struct { void *renderer; void *dispatch[1100]; } _macro;
 }
 @property(nonatomic) unsigned API;
@@ -305,6 +318,7 @@ static inline T290Context *current_ctx(void)
 {
     return (__bridge T290Context *)thread_current;
 }
+#include "ca_passes.h"
 static void t290_capture_present(T290Context *ctx);
 
 static void t290_missing(unsigned slot, const char *name)
@@ -317,7 +331,10 @@ static void t290_missing(unsigned slot, const char *name)
 static void t290_delete_object(GLuint obj)
 {
     if (gl.IsShader(obj)) gl.DeleteShader(obj);
-    else gl.DeleteProgram(obj);
+    else {
+        gl.DeleteProgram(obj);
+        [current_ctx().sharegroup.caMatrixLocations removeObjectForKey:@(obj)];
+    }
 }
 static void t290_object_iv(GLuint obj, GLenum pname, GLint *value)
 {
@@ -673,6 +690,8 @@ static void t290_attach_shader(GLuint program, GLuint shader)
 static GLint t290_uniform_location(GLuint program, const GLchar *name)
 {
     GLint location = gl.GetUniformLocation(program, name);
+    if (location >= 0 && name && !strcmp(name, "vertex_matrix"))
+        current_ctx().sharegroup.caMatrixLocations[@(program)] = @(location);
     static unsigned logged;
     if (trace_render && logged++ < 128)
         plog("TRACE uniform program %u %s location %d", program, name, location);
@@ -904,6 +923,7 @@ static uintptr_t unsupported_private(void *ctx, ...)
         group.dirty = [NSMutableSet set];
         group.mipmapped = [NSMutableIndexSet indexSet];
         group.mipLevels = [NSMutableDictionary dictionary];
+        group.caMatrixLocations = [NSMutableDictionary dictionary];
     }
     _sharegroup = group;
     _framebuffers = [NSMutableDictionary dictionary];
@@ -1144,7 +1164,10 @@ __attribute__((constructor)) static void bridge_init(void)
         !LOAD(Scissor) || !LOAD(Viewport) || !LOAD(EGLImageTargetTexture2DOES) ||
         !LOAD(EGLImageTargetRenderbufferStorageOES) || !LOAD(TexParameteri) || !LOAD(GenerateMipmap) ||
         !LOAD(TexImage2D) || !LOAD(TexSubImage2D) || !LOAD(CompressedTexImage2D) || !LOAD(ShaderSource) ||
-        !LOAD(GetTexParameteriv) || !LOAD(AttachShader) || !LOAD(GetUniformLocation)) {
+        !LOAD(GetTexParameteriv) || !LOAD(AttachShader) || !LOAD(GetUniformLocation) ||
+        !LOAD(CreateShader) || !LOAD(CreateProgram) || !LOAD(CompileShader) || !LOAD(LinkProgram) ||
+        !LOAD(UseProgram) || !LOAD(BindAttribLocation) || !LOAD(Uniform1i) || !LOAD(Uniform2f) ||
+        !LOAD(Uniform4fv) || !LOAD(UniformMatrix4fv)) {
         plog("t290eagl: incompatible Mesa: GL entry point missing");
         mesa_create = NULL;
         return;
@@ -1160,6 +1183,7 @@ __attribute__((constructor)) static void bridge_init(void)
     LOAD(GetUniformiv);
 #undef LOAD
     t290_dispatch_init();
+    t290_ca_install();
     Class c = objc_getClass("EAGLContext");
     if (c) {
         replace(c, "initWithAPI:", (IMP)init_api, NO);

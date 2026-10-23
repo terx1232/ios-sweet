@@ -74,3 +74,30 @@ renderbuffer allocation is not implemented; unsupported surface formats
 fail import. Apple-only extensions are not advertised. Image inversion,
 additional private EAGL parameters and unobserved entry points still need
 validation against the actual compositor.
+
+## Missing CoreAnimation GLES passes (0136 userland follow-up)
+
+`ca_passes.h` supplies textured function89 and premultiplied color-matrix
+function20 when CA selects program0. The hook checks the installed16.7.16
+QuartzCore UUID and four original vtable targets before making a private
+copy of the vtable page. Other firmware/processes are left untouched.
+`function_supported` is observed without changing its result: this does
+not implement the remaining Metal-only effects or general Metal support.
+
+The draw hook provides the active native CA context; uniform interception
+keeps its five color-matrix columns in a bounded per-thread cache. The GLI
+matrix adapter remembers CA's live matrix address and reads it safely before
+the missing pass, since CA can update that storage without a GL upload.
+Texture dimensions come from tracked allocations, including IOSurfaces.
+No source texture, inaccessible parameters, unknown operations and texture
+feedback skip the pass. Diagnostic messages identify these cases. Existing
+programmed draws and GL array/blend/texture state are preserved; replacement
+programs are restored to0 after drawing, including unavailable GLI entries.
+
+Run `python3 t290/eagl/test-ca-shaders.py` in Linux/WSL for software-Mesa
+ES2.0/ES3.0 pixel checks using the exact shipped shader strings. This verifies
+RGBA/alpha, pixel coordinates, color-matrix columns/bias/clamping and clip
+transforms. It does not execute the iOS hooks or Adreno. The real-device
+guard adds missing-program copy, live matrix updates, color matrix, feedback
+prevention, unknown-operation skip and GL state restoration in both APIs.
+Build success and software pixels alone are not proof of a repaired desktop.

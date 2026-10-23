@@ -88,6 +88,7 @@ static void capture_record(T290Context *ctx, unsigned kind, GLuint texture,
         (uint32_t)ctx->_viewport[2], (uint32_t)ctx->_viewport[3], (uint32_t)size};
     header[29] = ctx->_drawKind;
     header[30] = 1; /* operation type is present; older records left this0 */
+    if (ca_drawing_context) header[31] = ca_function(ca_drawing_context) + 1;
     BOOL ok = capture_write_all(header, sizeof(header)) && capture_write_all(data, size);
     if (ok) {
         capture_bytes += sizeof(header) + size;

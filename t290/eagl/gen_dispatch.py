@@ -79,6 +79,8 @@ special = {
     'shader_source_ARB': 't290_shader_source',
     'attach_object_ARB': 't290_attach_shader',
     'get_uniform_location_ARB': 't290_uniform_location',
+    'use_program_object_ARB': 't290_use_program',
+    'uniform_matrix4fv_ARB': 't290_uniform_matrix4fv',
 }
 # GL calls writing the draw framebuffer -> rows they can touch (eaglshim.m)
 draw_calls = {
@@ -123,6 +125,8 @@ for i, member in enumerate(members):
     if name in draw_calls:
         out.append(f'  t290_before_draw({draw_calls[name]});')
         out.append('  t290_trace_draw(current_ctx());')
+        if draw_calls[name] == 'DRAW_PRIMITIVES':
+            out.append('  int ca_pass = t290_ca_draw_begin(current_ctx());')
     if name in texture_writes | texture_definitions:
         out.append(f'  t290_texture_write({"YES" if name in texture_definitions else "NO"});')
     call = special.get(name)
@@ -131,13 +135,18 @@ for i, member in enumerate(members):
     else:
         out.append(f'  typedef {ret} (*Fn)({args});')
         out.append(f'  Fn fn = (Fn)gli_funcs[{i}];')
-        out.append(f'  if (!fn) {{ t290_missing({i}, "{name}"); ' + ('return;' if ret == 'void' else f'return ({ret})0;') + ' }')
-        out.append('  ' + ('' if ret == 'void' else 'return ') + 'fn(' + ', '.join(argv) + ');')
+        primitive = draw_calls.get(name) == 'DRAW_PRIMITIVES'
+        restore = 'if (ca_pass == CA_PASS_PROGRAM) gl.UseProgram(0); ' if primitive else ''
+        out.append(f'  if (!fn) {{ {restore}t290_missing({i}, "{name}"); ' + ('return;' if ret == 'void' else f'return ({ret})0;') + ' }')
+        condition = 'if (ca_pass != CA_PASS_SKIP) ' if primitive else ''
+        out.append('  ' + condition + ('' if ret == 'void' else 'return ') + 'fn(' + ', '.join(argv) + ');')
     if name in check_calls:
         assert ret == 'void', (name, ret)
         out.append(f'  t290_after_call({i}, "{name}");')
     if name in draw_calls:
         out.append('  t290_capture_after_draw(current_ctx());')
+        if draw_calls[name] == 'DRAW_PRIMITIVES':
+            out.append('  if (ca_pass == CA_PASS_PROGRAM) gl.UseProgram(0);')
     out.append('}')
     rows.append((i, name, candidates))
 out.append('static void t290_dispatch_init(void) {')

@@ -4,7 +4,38 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff 2026-10-23: 0136 icons restored; missing CA passes under investigation
+## Active handoff 2026-10-23: CA passes1 staged, awaiting hardware test
+
+- **ca-passes1 USERLAND UPDATE STAGED, full SD readback PASS.** Android/root
+  ADB appeared during work. Recovered old0136 request GETs first, complete8/8;
+  files now in dl/k-t290-0136/before (old0135 capture/bridge/test/marker/log).
+  Staged a new8op request: GET current0136 bridge/test/marker/capture/log
+  into dl/ca-passes1/before, then PUT new bridge/test/marker2.84582914B,
+  request SHA256 d8981a44e9755b78012299bb5cf176dbe565f7172b8bbb020d6adf5372f2dbcb.
+  Script/results/manifests in dl/ca-passes1; keep launcher's test guard.
+  Recovery unchanged0136. Requested user manual iPadOS boot; Android at
+  staging completion. Recover new backup GETs with -Result before next update.
+- **New implementation:** native CA draw/uniform hooks restricted to
+  backboardd, exact16.7.16 UUID +4 original vtable pointer checks and private
+  COW page. Shader replacements ONLY program0 functions89(textured) and
+  20(premultiplied color matrix), native context-scoped parameters and safely
+  read live vertex matrix. Preserve GL program/texture/arrays/blending state;
+  skip feedback/unknown/missing parameters. function_supported result not
+  changed, so remaining unsupported effects still need implementation.
+  Capture reserved2 adds function+1; refusal/skip reasons logged.
+- **Validation:** local Linux software-Mesa ACTUAL ES2.0 and ES3.0 pixels
+  PASS for shipped shaders:4 color/alpha quadrants, pixel coords, color matrix
+  columns/bias/clamp and clip transform. New real-device guard additionally
+  covers copy, live-matrix change without GL uniform upload, matrix pass,
+  feedback, unknown-op skip and program/unit/attribute state restoration.
+  Hardware execution/UI improvement NOT yet tested. Local ARM64 iOS builds,
+  237 GLI signatures and ad-hoc signature/entitlement validation PASS.
+  Bridge547200B SHA ce9413da73c39b78944727e7931192178a4e158bca303b9faf2eb6ba7b32fafd;
+  test87344B SHA ecfa3566cae1390138aa55a4b68ddbdb94fb9340629ac51a9e8272ddd57c3cd9.
+  Sources/build-info retained in /home/kirill/t290-toolchain/build-ca-passes1.
+  Next: drain USB on new boot; verify8/8, guardexit0, hook installed, native
+  programless IDs and replacement outputs, then compare full screen. Do NOT
+  claim background/text fixed from host tests alone. Content first, FPS next.
 
 - **0136 BOOT VERIFIED.** Native USB capture in
   `ios-t290/usb-captures/ca-address1/boot-20261023-164443-0136`.
@@ -17,8 +48,8 @@
 - Fixed capture decoder: concatenate USB log slices before splitting lines.
   A64KiB L packet can cut CAPDATA midline. Actual capture now143/143 valid
   records,0 rejected; fixture tests every text byte split and rejects missing
-  chunks. Isolate boots; sequence IDs restart. Need recover SD backup GETs
-  with t290-xfer.ps1 -Result on Android BEFORE replacing the current request.
+  chunks. Isolate boots; sequence IDs restart. The old SD backup GETs were
+  subsequently recovered before staging ca-passes1 above.
 - Concrete remaining failure: primitive draw10, FBO5/255x153, program0,
   nonempty input texture7, all-zero output. Purple already exists in an
   uploaded bitmap, so blanket swizzling/recoloring would be unjustified.
@@ -28,7 +59,7 @@
   Verified GLES vtable1d57df6e8; draw_elements slots1d57df7f8/1d57df800,
   targets1884316d0/18838591c; uniform slot1d57dfa80->1884321ac.
   Context+0x10 then state+0x10 function word matches actual disassembly.
-  No new rendering code installed yet; device remains iPadOS/COM7.
+  Subsequent rendering update prepared/staged above, not yet boot-tested.
 
 - **RECOVERY0136 INSTALLED — user explicitly approved ("разпешаю").**
   Ran guarded `ios-t290/backup-20261023-gpu0136/flash-0136.ps1 -WriteApproved`.
@@ -37,13 +68,9 @@
   Full partition SHA256 readback PASS:
   a21119db2806b2b6f7cbd675c9bc940a32e981fcc1bfac7bd6008fdd8c222914.
   Result `ios-t290/backup-20261023-gpu0136/flash-0136-result.json`.
-  Android still running; no reboot command issued. Existing staged8op SD
-  request is pending and should be consumed on first0136 boot. Hardware GPU
-  guard/real interface NOT tested yet. User must boot through usual recovery
-  menu (avoid adb reboot recovery due known LK/misc loop). Leave USB attached;
-  drain native L immediately, verify xfer8/8 and eagltest exit0 plus new
-  client-memory cases, then F screenshot and actual capture. If Android is
-  returned, -Result recovers backup GETs before replacing the SD request.
+  First0136 boot and SD backup recovery subsequently completed above.
+  Continue manual recovery-menu boots (avoid adb reboot recovery due known
+  LK/misc loop). Preserve this recovery while testing the userland update.
 
 - **0136 BUILD/PREPARATION (completed before approval above).**
   Image `dl/k-t290-0136/recovery-0136.img`,64MiB, SHA256
