@@ -6,6 +6,22 @@
 
 ## Active handoff 2026-10-22: FPS and missing UI, kernel 0135 preparation
 
+- **2026-10-23 CPU-ICONS1 STAGED, awaiting manual iPadOS boot.** Android root
+  ADB ready. ca-half1 request confirmed done5/5; previous bridge/test/log
+  backups recovered. New request ONLY puts test c46d0b4, with old-test/log
+  GET backups scheduled first to dl/cpu-icons1/before. Three ops,33682768B;
+  full SD readback PASS. Request SHA256
+  13e9daa569dd1d07c11a5db72f1cd71bc34422901a7f9bf08fb1bbd23682f521;
+  test8a957c2c0bf4761f9087e16297a847759af5afafe03dfac334d2ce4218b3578d.
+  Manifest dl/cpu-icons1/sd-staged.json + xfer-manifest.json. Recovery0135,
+  Mesa, bridge009be071... and trace marker unchanged. Next manual boot:
+  immediately capture native USB L/F; look for CPU icon inferred-RGBA/BGRA,
+  stride512, rounds0/1, quadrants0-3 in ES2 and ES3, actual pixel values.
+  Failure80-85 must keep guard CPU fallback; do not bypass. No UI fix claimed.
+- Saved latest Android pstore ios-t290/logs/ca-half-return/{console,dmesg}.bin.
+  Non-monotonic time last_dispatch0x2d3d1368b ctime0, sched_prim.c796, CPU3.
+  Another occurrence of the unresolved zero-time fault; not fixed by tests.
+
 - **2026-10-23 CA-HALF1 HARDWARE PASS.** User in iPadOS, native COM7.
   ca-half1/log0 USB packet missing512 bytes, raw/text preserved; log1-4
   complete. Xfer5/5 consumed. All four half-vbo48 and half-client48-indexed
@@ -23,7 +39,7 @@
   policy absent. CPU boost path raisesS5 to885mV; GPU only200/400GPLL0dividers
   currently supported. Do not change just a frequency constant or report
   max table values as actual live clocks. No clock/recovery changes made.
-- **NEXT TEST BUILT, NOT STAGED:** CPU-written real icon surfaces 120x120,
+- **CPU ICON TEST (now staged above):** CPU-written real icon surfaces 120x120,
   format0/inferredRGBA and BGRA, actual kernel512-byte rows, quadrant colors
   + alpha, two CPU updates while keeping the same GPU import bound. Prior
   CPU-update coverage was padded LA08; row-layout tests primarily GPU writes.
