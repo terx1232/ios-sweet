@@ -6,6 +6,23 @@
 
 ## Active handoff 2026-10-23: missing UI, kernel 0135 installed
 
+- **CA-CAPTURE1 STAGED (2026-10-23), awaiting manual iPadOS boot.** Android
+  root ADB ready. cpu-icons1 request confirmed done3/3, old test/log GETs
+  recovered. New request: backup bridge/marker/log GETs first, then ONLY
+  bridge d3d4f9da... + marker2 PUTs.5ops,50926594B; full SD readback PASS.
+  Request SHA256 699bb64ead8cf4b150665c4d8a907ce20d0c2600b6ef7ea46ccdb7c1f6ed141b.
+  dl/ca-capture1/sd-staged.json + xfer-manifest.json. Code7355d35. Existing
+  test8a957c2c..., Mesa, recovery0135 and clocks unchanged. Guard must PASS.
+  Saved pstore at ios-t290/logs/cpu-icons-return/; no panic line found in
+  these saved tails (does not establish stability fault fixed).
+- NEXT: after manual boot immediately drain USB L (64+ replies if needed,
+  retain incomplete wire/text), collect F, decode CAPBEGIN/CAPDATA with
+  t290/eagl/decode-capture.py --logs LOG_DIR DECODED_DIR. Use ONE BOOT per
+  log folder: record numbers restart in each process/boot. Watch for
+  "real compositor capture enabled" and CAPTURE/CAPBEGIN; report missing
+  records from stream-status.json. Inspect actual source/alpha/FBO outputs
+  before choosing a workaround. No visual correction established yet.
+
 - **CPU-ICONS1 REAL GPU PASS (2026-10-23).** USB COM7, xfer done3/3.
   Both ES2/ES3: format0/inferredRGBA and BGRA, stride512, rounds0/1,
   all4 quadrants including alpha match exactly:32 samples, error0. Guard
@@ -33,7 +50,7 @@
   Outputs capture.bin, manifest.json, stream-status.json, raw payloads,
   RGBA/alpha PNGs, uniform/state values. Inspect first disappearing/empty
   stage, do not infer cause from a test PASS alone.
-- **CA-CAPTURE1 BUILT, NOT STAGED.** Local ARM64/iOS16/code-signature pages/
+- **CA-CAPTURE1 BUILD (now staged above).** Local ARM64/iOS16/code-signature pages/
   test entitlements/211 GLI CALL signatures PASS,10s. New decoder fixtures
   PASS: paddedBGRA, A8, float16, GLstate, signed coordinates, truncated tail,
   corrupt header; zlib framed/raw USB streams, missing chunks and bad FNV.
