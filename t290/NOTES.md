@@ -4,6 +4,37 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff:0142 hardware results, Settings/Photos failures now identified
+
+-0142 actual boot/capture completed141 log chunks +F3072064B/I121B:
+  ios-t290/usb-captures/0142/boot-20261023-233643-0142.
+  Detail verification0142.txt there; latest frame-233820.png.
+- RTC PASS raw23696203/offset1769073406/epoch1792769609 (2026-10-23UTC).
+  SPU log spam0 (0141 had320). Driverkitd requested6MB->64MB twice, no
+  driverkitd CRASH/fatal-memory event in observation window. No50MB watermark
+  opt-in EINVAL. No observed panic. Long-term survival not established.
+  EAGL exit0/Mesa enabled, motion verified sender/bridge+orientation3, USB live.
+- User requested fixes for all these system errors; latest steering requested
+  checking new logs. Confirmed application failures still need fixing:
+  Preferences[204] SIGABRT NSInvalidArgumentException nil dictionary objects[3].
+  FIRST THROW symbolicated against original cache with slide0x29cc4000:
+  PreferencesUI -[PSUIPrefsListController passbookSpecifier]+0x178 at
+  unslid0x2054daf78, specifiers+0xdd4 0x2054d9ac8. Investigate actual Wallet
+  specifier missing dependency; do not globally drop nil dictionary entries.
+- Photos MobileSlideShow[203] SIGABRT NSInternalInconsistencyException:
+  PHCollectionList fetchRootAlbumCollectionListWithOptions returns0 items.
+  PhotosUICore rootAlbumCollectionList block+0xb0 at0x1a56774e0.
+  Investigate photolibraryd/root album DB initialization, no fabricated album.
+-35 real137x137,bpr576 client-memory IOSurface create failures,size0 ->
+  0xe00002c2, separate from deliberate test bpr480 rejection. Inspect producer
+  properties; preserve allocation bounds safety. Filesystem/BindFS warnings
+  persist. No claim all graphics/apps fixed. Bluetooth still deferred.
+- Tablet in iPadOS0142, no new images/SD request/device changes. No collectors
+  running now. Source commit5cf6600 recorded installed0142; symbol helpers
+  dl/t290-system/{symbols,firstthrow}0142.sh, use wsl -u root for cache mount.
+
+### 0142 preparation and installation history
+
 ## Active handoff:0142 INSTALLED, hardware test pending
 
 - User requested fixing journal issues, Bluetooth deferred. Patch0142:

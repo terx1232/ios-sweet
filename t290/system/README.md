@@ -43,3 +43,10 @@ check SWEET RTC/MEM, SPU assertions, driverkitd survival and motion regression.
 
 RTC register/carry reference:
 https://github.com/torvalds/linux/blob/v6.12/drivers/rtc/rtc-pm8xxx.c
+
+0142 hardware observation: calibrated RTC returned valid2026 UTC, SPU/AOP
+assertions fell from320 to0, launchd50MB watermark error disappeared. The
+actual driverkitd request was6MB;64MB floor applied and its previous crash did
+not recur in the capture window. GPU guards and measured rotation still pass.
+Settings and Photos have independent NSException failures (Wallet specifier
+nil dictionary and missing root album); these remain unresolved.
