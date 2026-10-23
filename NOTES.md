@@ -1,5 +1,10 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
+0138 hardware update: KXTJ3 probe0/id0x35, live tilt samples, one subscriber;
+auto rotation still absent. User reports UI/power hang; USB L/F and sensor
+remain alive, no observed panic, cause unknown. Separate vertical/horizontal
+pose records saved; details and next diagnosis in t290/NOTES.md.
+
 **Active SM-T290 work (2026-10-23):** see `t290/NOTES.md` first.
 User requested accelerometer-driven automatic rotation. Live Android config:
 KXTJ3 bus4/0x0e, GPIO14/15, axes+Y,-X,+Z, SSC-owned.0138 test image prepared:

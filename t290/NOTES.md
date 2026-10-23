@@ -6,6 +6,32 @@
 
 ## Active handoff 2026-10-23: accelerometer requested;0138 INSTALLED
 
+- 0138 ACTUAL SENSOR PASS, AUTO ROTATION STILL NOT WORKING. Native USB
+  boot ios-t290/usb-captures/0138/boot-20261023-184523-0138: probe0/id0x35,
+  samples change with tilt; clients0 initially then1 after backboardd starts.
+  User reports UI/power unresponsive, but native USB L/F and live samples
+  continue. No observed panic in collected text; cause of UI hang UNKNOWN.
+- Two separately labelled pose recordings under that boot's poses directory:
+  vertical-20261023-190910 and horizontal-camera-left (latest timestamp).
+  Contains some old queued logs; use final stable samples, not whole-record
+  averages. Vertical tail seq34750/34875 mostly +X, horizontal tail seq35625+
+  mostly +Y. Earlier inferred sign-only correction is NOT sufficient; verify
+  mapping against these labelled poses before changing axes.
+- Reverse inspection actual pristine backboardd: BKOrientationManager init
+  matcher at0x100079fe4 looks for page0xff00/usage3, unlike current standard
+  Sensor/Accelerometer3D service. CMDeviceOrientationManager supplies rotation;
+  raw acceleration alone is not yet wired to this path. No0139 source/image.
+  Local read-only extracted binary and metadata scripts dl/t290-motion.
+- Found missing hang sampler startup: sweet_sample_start called only from
+  UFS/virtio, NOT sweet_sdhc SD root. Current sweetsample boot arg thus has
+  no effect! Next kernel should start it in SD path and include SpringBoard
+  in selected names. Userland normal orientation entry verified metadata:
+  BKOrientationManager updateDeviceOrientation:changeSource: v32@0:8q16q24,
+  DISPATCH_SYNC internally (never call it while holding input/manager locks).
+  BKAccelerometerInterface processEvent:sender:dispatcher: returns q, arg2
+  N^^{__IOHIDEvent}; ivar _lock_orientationManager offset0x20. Investigation
+  only; no runtime hooks written. Preserve rotation locks if bridging it.
+
 - User requested accelerometer-driven auto rotation; previous FPS/app task
   remains unfinished. Android ADB/root connected for read-only inspection.
 - Recovery0137 installed with explicit approval; full64MiB SHA87100f2d...9ca576
