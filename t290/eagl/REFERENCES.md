@@ -45,3 +45,39 @@ GLES vtable1d57df6e8. Native function reads context+0x10/state+0x10.
 delivers4x5 floats at18845722c..188457258. Program loader at1884323c8
 explicitly bypasses program creation for0x59. Runtime hook additionally
 checks exact original function addresses. No reference16.5 address copied.
+
+## Further 3D/Metal search, 2026-10-23
+
+Read the current primary sources again, pinned independently of the first
+review (the HackiOS history has no common ancestor with the earlier pin).
+
+- [HackiOS Metal frontend](https://github.com/oosexgang/hackios-xnu-userland/blob/a79ff0772a3454fd1ef127e181e5b3bce6c9ce18/userland/src/redwoodmetal.m)
+  and [Gallium/AIR API](https://github.com/oosexgang/hackios-xnu-userland/blob/a79ff0772a3454fd1ef127e181e5b3bce6c9ce18/tools/mesa/air/air_metal.h).
+  Experimental device/buffer/compute/render objects plus AIR->NIR->ir3,
+  using Gallium directly, not Vulkan. Potentially relevant to A5xx, but not
+  tested there. Their Mesa25.0.7 additions are absent from our24.2.8 build;
+  RedwoodGPU IO ABI, IOSurface import,16.5 private Metal SPI and A504 caps
+  require separate adaptation/validation. Source explicitly omits heaps,
+  blit encoders, events, multisample resolve and viewport rectangles. AIR
+  compiler counts are not a percentage of a working Metal driver. The AIR
+  document's older 'runtime not started' paragraphs are superseded by source.
+  Latest eagl.c is byte-identical to the earlier reviewed copy; no new simple
+  GLES fix appeared in that update.
+- [UniXNU NativeMetal](https://github.com/UniXNU/NativeMetal/tree/c6d29caad6d880cc8204ebe3bc34d77479a3255d)
+  and [runtime architecture](https://unixnu.com/drivers/native-adreno).
+  Project reports Metal-composited desktop on A740/sheng. Uses
+  metal2vulkan->SPIR-V->Turnip->NativeAdreno; not a drop-in A504 driver.
+  [Mesa documentation](https://docs.mesa3d.org/drivers/freedreno.html)
+  explicitly excludes A5xx from Turnip. Frontend resource lifetime, fences,
+  IOSurface/scanout and pipeline-cache designs remain useful references.
+- [ios-topaz](https://github.com/MakrSas/ios-topaz/tree/e4772911e116ab4ab6c4ac1f38e6106fefe8b483)
+  now contains userland/gpu sources and IOSurface client-address patches.
+  Its README still says those GPU patches are pending publication, so inspect
+  the pinned tree rather than treating the README as the complete inventory.
+  This is an A610 port; literal cache addresses differ even for16.7.16.
+
+No ready SM-T290/A504 iOS Metal driver was found in these checked projects.
+Our existing FD504 GLI polygon/texture pixels already run on the real GPU;
+remaining system-compositor functions45/28 are separately observed gaps.
+Research copies/source hashes: dl/driver-refs/review-20261023/sources.json,
+18 files/1276038B outside git. Downloaded sources were read, not executed.
