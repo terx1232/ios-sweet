@@ -4,6 +4,25 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Latest steering: review system journal before more Bluetooth changes
+
+- User asked to pause BT changes and inspect system logs. Read-only fresh
+  nativeUSB appended log176(60256B),log177(empty),frame-231641.png to actual0141
+  capture. Review saved there as system-review.txt. No device changes made.
+- driverkitd SIG9 ns1/code7 now decoded against actual XNU build headers:
+  OS_REASON_JETSAM / JETSAM_REASON_MEMORY_PERPROCESSLIMIT. It exceeded its
+  per-process limit. This does not prove overall RAM exhaustion, nor explain
+  Safari/Settings/Photos crashes (none launched/crashed in this capture).
+-178 log chunks total: no other CRASH process/no panic(cpu observed.
+  EAGL test exit0/Mesa enabled, live KXTJ3/USB and measured rotations continue.
+ 320 repeated AppleSPUKext liblog_aop AssertMacros:success line135 messages;
+  cause/impact unknown. Also50MB Jetsam opt-in EINVAL, filesystem-info failures,
+  persona startup warnings and sandbox privilege denials. Clock is1969-12-31.
+- Current snapshot App Library landscape/icons/text with black background.
+  SMP raw stacks alone do not establish a deadlock. Symbolicator cache mount
+  /home/kirill/sysos absent; previous mapped_query.py exits IndexError, so no
+  invented symbol names. No new source changes for Bluetooth yet.
+
 ## Active handoff 2026-10-23:0141 booted, WCNSS partition found
 
 - Actual0141 capture complete: ios-t290/usb-captures/0141/
