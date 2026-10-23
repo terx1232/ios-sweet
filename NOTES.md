@@ -4,8 +4,8 @@
 SCM64/PIL APIs available; WCNSS heap empty, both SMD banks absent.0144 adds
 PAS6 support query + full firmware-file SHA256 preflight; compile/link/pack/
 QEMU PASS. Android connected,0143 backup/0144 push/preflight PASS. SD4op
-firmware request staged/fullreadback PASS, not consumed. **0144 NOT approved
-or flashed.** Need explicit approval, boot then collect. Firmware not executed,
+firmware request staged/fullreadback PASS, not consumed. **0144 INSTALLED after explicit
+approval; full partition SHA readback PASS.** Next manual boot then collect. Firmware not executed,
 Bluetooth not working yet. UI freeze evidence preserved, BT remains priority.
 
 ## Agent handoff / active work (2026-10-15, latest)

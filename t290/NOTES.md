@@ -4,7 +4,7 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff2026-10-24:0143 booted,0144 prepared; approval pending
+## Active handoff2026-10-24:0143 booted,0144 INSTALLED; hardware test pending
 
 - Actual0143 capture completed139 logs +F3072064B/I121B:
   ios-t290/usb-captures/0143/boot-20261023-235244-0143. SCM convention64,
@@ -44,8 +44,11 @@
 -0143 backup verified local/device/current partition in
   ios-t290/backup-20261024-bluetooth0144/recovery-before-0144.img,
   SHAe1796bf6...93222a.0144 image pushed; flash-0144.ps1 read-only preflight
-  PASS. **0144 NOT approved/flashed.** Ask explicit partition-write approval
-  per AGENTS; after flash full readback and manual recovery-menu boot.
+  PASS. **0144 INSTALLED after explicit user approval.**
+  flash-0144.ps1 -WriteApproved exit0; full64MiB partition SHA readback PASS
+  5c4453da28d39e406b4d5589cdce7a1c0cde1a07ba3fbd03168e5314246f7adc.
+  Result JSON saved in backup directory. No reboot command sent.
+  Next manual recovery-menu boot.
   NativeUSB helpers collect-live/collect-more/wait-collect0144.py; inspect
   PAS6 support and firmware files image=0 metadata=0, plus XFER done4/4.
 
