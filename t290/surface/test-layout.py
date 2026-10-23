@@ -100,7 +100,7 @@ with tempfile.TemporaryDirectory(prefix='t290-layout-') as tmp:
     exe = pathlib.Path(tmp) / 'layout-test'
     cpp.write_text(stub + helpers + tests)
     subprocess.run(['clang++', '-std=c++17', '-O1', '-fsanitize=undefined,address',
-                    '-fno-omit-frame-pointer', str(cpp), '-o', str(exe)], check=True)
+                    '-fno-omit-frame-pointer', '-no-pie', str(cpp), '-o', str(exe)], check=True)
     # Stub dictionaries own no values: short-lived test fixture allocations.
     import os
     subprocess.run([str(exe)], env={**os.environ, 'ASAN_OPTIONS': 'detect_leaks=0'}, check=True)

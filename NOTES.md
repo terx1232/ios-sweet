@@ -2,9 +2,12 @@
 
 **Active SM-T290 work (2026-10-23):** see `t290/NOTES.md` and `t290/GPU.md`.
 Patch0136 and matching EAGL bridge now implement IOSurfaceAddress with pinned
-client memory and an aligned GPU backing. Local layout/compile/ABI/signature
-checks PASS; hardware pixel tests and full kernel build still pending.
-No new recovery written. Android connected; prior SD backup GETs recovered.
+client memory and an aligned GPU backing. Full kernel linked locally in WSL
+(GitHub Actions dispatch blocked HTTP422),90s QEMU no panic, not a UI test.
+64MiB image a21119db...222914 copied to Android, SHA verified;0135 backed up.
+Bridge/test/marker2 SD request staged8ops, full readback PASS; not consumed.
+No new recovery written; user approval for0136 still required. See active
+t290/NOTES.md for exact hashes, local build recipe and pending hardware tests.
 Recovery 0135 installed, GPU compositor active, UI content widely missing.
 User priority is content first, FPS later. Real CA shader/texture trace and
 complete home-screen USB screenshot saved. CA-like constant/u8 vertex color,

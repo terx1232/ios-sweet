@@ -6,6 +6,58 @@
 
 ## Active handoff 2026-10-23: missing UI, kernel 0135 installed
 
+- **0136 BUILT LOCALLY + PREPARED; RECOVERY WRITE NOT APPROVED YET.**
+  Image `dl/k-t290-0136/recovery-0136.img`,64MiB, SHA256
+  a21119db2806b2b6f7cbd675c9bc940a32e981fcc1bfac7bd6008fdd8c222914.
+  Copied to Android `/data/local/tmp/recovery-0136.img`; device SHA matches.
+  Current recovery0135 hash d2ef0bbf... matches expected. Full64MiB backup
+  `ios-t290/backup-20261023-gpu0136/recovery-before-0136.img`, same hash.
+  Do NOT flash until user approves this specific new partition write.
+- New kernel SHA6cb414adb3b8f5c20f1893c45b45932a34b73e636ae7f6ccf8b90c34e4eeb056;
+  bridge41ec7ae792a114cf597015d705aaaf34d252a672fd44c9b184f74ba722fea1b6;
+  test e9817a6843586fd0069d6122add94a6cc94ad895d72f7d507826f107d9315c7f.
+  Same known0135 shim, DTBs, payload ADT and complete boot arguments,
+  includingcpus4/native800x1280/t290usb2. Payload/image round-trip PASS.
+- **BUILD PATH:** GitHub dispatch refused HTTP422 "Actions has been disabled
+  for this repository"; permission API still enabled:true, workflow active,
+  repo enabled, admin:true. No new run created; retained39796561147 intact.
+  Did not change settings/create another repo. Instead built ld64-956.6
+  cctools-port904de2a71d4da6a9b30d2efaf912a10ddc7d9ddb in WSL. Reused
+  verified0135 archive, replaced SweetSurface/SweetGPU/SweetFramebuffer.
+  Built firehose from Apple libdispatch1415.140.2 cdb61e93e803, LLVM17.0.6
+  freestanding profile runtime (raw version8 matches0135). Reused isolated
+  original48B stack probe after disassembly verified internal branches only.
+  Apple binary inputs/support blob remain OUTSIDE git. Full recipe/logs in
+  dl/ca-address1/{build-host-linker.sh,build-support.sh,relink.py,pack-image.sh};
+  native tree /home/kirill/t290-local-kernel; original source tree fps0135.
+  All local compiles MUST use -mcpu=cortex-a53, NOT only -march=armv8-a:
+  Linux clang defaults macOS arm64 to Apple M1 and can emit LSE regardless.
+  Initial QEMU caught a firehose CAS; fixed flags and rebuilt. Profile runtime
+  also uses -mgeneral-regs-only. Link succeeds with no undefined symbols.
+- QEMU final Cortex-A53/1CPU/90s: no_panic_observed,0 unknown glyphs,
+  reached load_init_program attempts. NOT evidence PID1 or UI completed.
+  Original0135 control30s also no_panic, still at Skywalk tests. Logs/screens
+  in /home/kirill/t290-local-kernel/qemu-*-20261023. Real GPU tests NOT RUN.
+  Actual layout ASan/UBSan tests PASS; after one host-ASan startup SIGSEGV,
+  fixed host executable to non-PIE and repeated3/3 PASS. Three kernel files
+  compile to objects PASS; bridge221 GLI/signature checks PASS.
+- **SD REQUEST STAGED8ops, not consumed:** GET current bridge/test/marker/
+  capture file/log FIRST into dl/k-t290-0136/before; then PUT new bridge,
+  new test and marker2.84580866B, full readback PASS, SHA256
+  c00a107e8682b620538bbde0f42741e304669811996b21dceb30ac0e64999154.
+  sd-staged.json/xfer-manifest.json saved. Keep existing t290launch guard.
+  New tests require0136; booting0135 with them should fall back to CPU.
+  After approved flash, verify full partition SHA then user manual boot;
+  drain USB L immediately, inspect client-memory alias/publish/readonly
+  cases in ES2+ES3 and exit0. Only then judge actual UI and captured pixels.
+  Recover GET backups with -Result on Android before replacing request.
+- Latest13:22 USB logs decoded separately (new boot/cursor replay, no mixed
+  record IDs): dl/ca-capture1/decoded-live-132254,67 valid records, again three
+  all-zero120x120 source images32-34. Creation properties still unknown, so
+  IOSurfaceAddress remains a candidate visual cause, not a proved UI fix.
+  Android pstore saved ios-t290/logs/ca-capture1-return/dmesg.bin; no new
+  panic line observed in this tail. Prior zero-time fault remains unresolved.
+
 - **0136 CLIENT-MEMORY IMPLEMENTATION (not installed).** User requested a
   new version using the other-port findings; Android/root ADB connected.
   Recovered ca-capture1 SD backups with -Result: done5/5, previous bridge,
