@@ -6,6 +6,23 @@
 
 ## Active handoff 2026-10-23: PRIORITY FPS and app stability;0137 prepared
 
+- **Android connected;0137 prepared for approval, NOT written.** Recovered
+  ca-passes1 old GETs first (done8/8). Backed up current0136 full64MiB to
+  ios-t290/backup-20261023-gpu0137/recovery-before-0137.img; local hash and
+  partition both a21119db...222914. Pushed0137 image to Android tmp, SHA
+  87100f2d...9ca576 matches. Guarded flash-0137.ps1 read-only preflight PASS;
+  requires explicit0137 approval before -WriteApproved. Do not reboot yet.
+- Staged new8op SD request (current bridge/test/marker/capture/log GETs into
+  dl/k-t290-0137/before, new bridge/test and marker0 PUTs). Full84582914B
+  readback PASS SHA a5a04d1420ad74da75479657831c35cc50feb211b7e2cb750ebaf773f474e5d7.
+  New test REQUIRES0137; currently installed recovery still0136.
+- QEMU initial test omitted md0 image and hit the expected IOFindBSDRoot
+  panic (md0 not configured), not a kernel regression. Recreated a static
+  signed PID1 with tools/mkinit.py, padded32768B, attached via --ramdisk;
+  second60s CortexA53/GICv2 run is ongoing in exec session59566. Results
+  /home/kirill/t290-local-kernel/qa0137/with-root. Before approval, check
+  result.json/fb.txt and record actual outcome. Helper dl/qemu0137.sh.
+
 - User explicitly postponed remaining UI effects/Metal and wants faster UI
   and apps to stop closing. Also explicitly dropped clock changes: DO NOT
   spend further work on matching Android clocks. Safari hangs; Preferences
