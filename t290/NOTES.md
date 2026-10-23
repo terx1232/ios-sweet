@@ -4,7 +4,13 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff2026-10-24: GPU stability0145 APPROVED, not installed
+## Active handoff2026-10-24: GPU stability0145 INSTALLED, hardware test pending
+
+- Android USB reconnected after user action. Guard flash-0145.ps1
+  -WriteApproved exit0: complete preflight PASS,64MiB write and full partition
+  SHA256 readback fbff4649a6c8fe58d3f792869e6393eae2c4773b0ab8f01291b6faeb820571d2
+  PASS. flash-0145-result.json saved alongside verified0144 backup.
+  No reboot command sent. Next manual recovery-menu boot and USB capture.
 
 - User explicitly approved writing recovery0145. Guard invoked with
   -WriteApproved but failed at FIRST command getprop: adb no devices.
@@ -46,7 +52,7 @@
   fbff4649a6c8fe58d3f792869e6393eae2c4773b0ab8f01291b6faeb820571d2;
   kernel26608e6f647b6f0571e51c8c32f55533a17615ebc68c08f46fc8fbcf01a6173d.
   Guard backup directory/flash-0145.ps1.0145 now explicitly approved;
-  current connection failure is recorded above. No partition written yet.
+  initial connection failure resolved; installation result recorded above.
 - Helpers dl/t290-stability, build stability0145{,-objects},qa0145.
   Bootargs remove t290btprobe/t290btscm/t290btfiles; retain RTC offset,
   accelerometer, existing GPU clock and framebuffer30Hz.60FPS unverified.
