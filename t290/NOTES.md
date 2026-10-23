@@ -4,15 +4,30 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff 2026-10-23: missing UI, kernel 0135 installed
+## Active handoff 2026-10-23: recovery0136 installed, awaiting first boot
 
-- **0136 BUILT LOCALLY + PREPARED; RECOVERY WRITE NOT APPROVED YET.**
+- **RECOVERY0136 INSTALLED — user explicitly approved ("разпешаю").**
+  Ran guarded `ios-t290/backup-20261023-gpu0136/flash-0136.ps1 -WriteApproved`.
+  Confirmed SM-T290, recovery=mmcblk0p57/64MiB, current0135 hash, backup hash,
+  local and device0136 image hashes before writing. dd64/64MiB +sync PASS.
+  Full partition SHA256 readback PASS:
+  a21119db2806b2b6f7cbd675c9bc940a32e981fcc1bfac7bd6008fdd8c222914.
+  Result `ios-t290/backup-20261023-gpu0136/flash-0136-result.json`.
+  Android still running; no reboot command issued. Existing staged8op SD
+  request is pending and should be consumed on first0136 boot. Hardware GPU
+  guard/real interface NOT tested yet. User must boot through usual recovery
+  menu (avoid adb reboot recovery due known LK/misc loop). Leave USB attached;
+  drain native L immediately, verify xfer8/8 and eagltest exit0 plus new
+  client-memory cases, then F screenshot and actual capture. If Android is
+  returned, -Result recovers backup GETs before replacing the SD request.
+
+- **0136 BUILD/PREPARATION (completed before approval above).**
   Image `dl/k-t290-0136/recovery-0136.img`,64MiB, SHA256
   a21119db2806b2b6f7cbd675c9bc940a32e981fcc1bfac7bd6008fdd8c222914.
   Copied to Android `/data/local/tmp/recovery-0136.img`; device SHA matches.
   Current recovery0135 hash d2ef0bbf... matches expected. Full64MiB backup
   `ios-t290/backup-20261023-gpu0136/recovery-before-0136.img`, same hash.
-  Do NOT flash until user approves this specific new partition write.
+  User approval subsequently received and this image installed above.
 - New kernel SHA6cb414adb3b8f5c20f1893c45b45932a34b73e636ae7f6ccf8b90c34e4eeb056;
   bridge41ec7ae792a114cf597015d705aaaf34d252a672fd44c9b184f74ba722fea1b6;
   test e9817a6843586fd0069d6122add94a6cc94ad895d72f7d507826f107d9315c7f.
