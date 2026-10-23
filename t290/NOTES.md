@@ -4,7 +4,42 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff 2026-10-23:0141 INSTALLED, actual boot pending
+## Active handoff 2026-10-23:0141 booted, WCNSS partition found
+
+- Actual0141 capture complete: ios-t290/usb-captures/0141/
+  boot-20261023-230940-0141:176 log replies plus F3072064B and I121B.
+  SMEM version0xb0000,TOC0x434f5424/version1/7entries. WCNSS0/4
+  partition offset0x5a000,size0x2c000,cacheline32; allocation item13 status-2.
+  No panic found in captured text. EAGL test exit0/enabling Mesa, verified
+  KXTJ3 sender, measured orientation3, live sensor/USB continues.
+  driverkitd SIG9 reason1/code7 also present; cause not established.
+- This does NOT prove firmware off. Reference SMD source supports secondary
+  table266/control138/FIFO202 in addition to13/14/338.0141 only queried13.
+  Need inspect266 and private heap usage before destructive/reset operations.
+  Downstream reference saved outside git vendor-smd.c/smd_private.h;
+  googlesource e38998faf70429357419a02f5850ceefe9e887b6/drivers/soc/qcom/smd.c.
+- Added offline prepare_firmware.py/test_firmware.py,7 synthetic tests PASS.
+  Validates ELF32 ARM, split metadata, header/range/overflow/overlap, relocation
+  alignment, BSS, segment exact size and executable entry. No device access.
+  Actual private wcnss firmware validated/prepared9 load segments into
+  dl/t290-bluetooth/prepared-pronto-v1: memory6574080B SHA256
+  3ff1ecc279b4b6894c1a6f607bdbc9cbc0a428a3cd255e4c055a411f8a68742e;
+  ORIGINAL metadata7324B SHA256
+  73c9cf39430fb1865c9342151dcba66355c5f542ba561f0a99905b84cc115faf.
+  Physbase0x8ce00000,reserved7MiB,originalbase0x8d600000,entry0x8ce0191c.
+  NO hardware load/authentication/reset/clock/PMIC commands performed.
+- Next: complete SMD inventory including table266, verify cold-controller
+  ownership; implement PAS6 init/mem_setup/auth_reset with exact SCM ABI,
+  physical contiguous metadata/cache visibility and required proxy resources.
+  Then channel handshake/HCI ReadLocalVersion; lastly iPadOS H4 integration.
+  Firmware metadata must not be patched. No HCI/pairing claim yet.
+- Tablet last in iPadOS, recovery0141 installed verifiedSHA2ab7d974...e0e91.
+  No new recovery or SD request staged. No collectors currently running.
+  Preserve motion0139/graphics; no DVFS work. Existing backup0140 retained.
+
+### Prior0141 installation/preparation (actual boot result above)
+
+### Historical handoff 2026-10-23:0141 INSTALLED, actual boot pending
 
 - Actual0140 nativeUSB capture completed:
   ios-t290/usb-captures/0140/boot-20261023-230005-0140,

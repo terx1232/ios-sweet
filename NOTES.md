@@ -1,11 +1,13 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
 **SM-T290 active handoff:** read t290/NOTES.md first.0139 rotation works.
-0140 installed and booted; nativeUSB log saved, BT probe status=-3. Found
-wrong probe hostID3(DSPS), downstream WCNSS=4.0141 fixes host selection and
-adds table diagnostics; host tests/ARM64 link/pack/QEMU60s PASS.0141 INSTALLED after explicit approval, full partition SHA256 readback PASS.
-Next manual iPadOS boot and native USB capture. Android connected;0140 backup and0141 staging/preflight PASS. Bluetooth
-HCI/pairing still unimplemented. No clocks/60FPS/app-fix claims.
+0141 installed/booted; nativeUSB capture saved. Valid WCNSS host0/4 partition
+found offset0x5a000,size0x2c000; allocation item13 absent(-2). Do not infer
+controller off yet: secondary SMD table266/heap usage still need checking.
+Offline firmware preparer+7 synthetic tests PASS; actual9 segments fit7MiB,
+original signed metadata preserved. Not loaded/authenticated on hardware.
+Tablet last in iPadOS. Next controller initialization/SMD transport work.
+No Bluetooth pairing, clock/60FPS/app-fix claim.
 
 ## Agent handoff / active work (2026-10-15, latest)
 

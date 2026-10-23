@@ -36,9 +36,29 @@ metadata before looking up channels. Tests reject host3 and accept host4.
 The0140 result cannot establish whether WCNSS firmware is running.
 The collected boot also passed EAGL guards and continued motion/USB delivery.
 
-Next: boot0141 and collect `SWEET BT:` over native USB. If the remote processor
-is not running, implement bounded PAS6/Pronto startup and relocated MDT loading
-before opening SMD and adapting the original iPadOS H4 service transport.
+0141 actual boot found the version11 SMEM table and valid private host0/4
+partition at offset0x5a000, size0x2c000. Item13 is absent (status=-2).
+This does not establish that all SMD allocation tables are absent or that the
+remote processor is off. The reference SMD driver also supports a secondary
+allocation table266, control base138, FIFO base202; check this plus heap usage
+before changing controller state. No live HCI response has been observed.
+
+`prepare_firmware.py` prepares the observed split MDT format entirely on the
+PC. It validates ARM32 ELF/program-header bounds, relocation flags/alignment,
+segment overlap, reservation size, exact split-file sizes and executable entry.
+It returns unchanged signed metadata and a zero-filled relocated memory image.
+It does NOT authenticate firmware or load hardware. Output must be outside git.
+
+```sh
+python -m unittest discover -s t290/bluetooth -p test_firmware.py
+python t290/bluetooth/prepare_firmware.py /private/firmware /private/new-output
+```
+
+Actual local firmware preparation passed:9 load segments,6574080-byte image,
+7324-byte unchanged metadata, relocated entry0x8ce0191c. Seven synthetic test
+cases cover truncated/corrupt headers, sizes, entry, overlap and bounds.
+Next implement/verify PAS6 startup, resource ownership and SMD handshake before
+adapting the original iPadOS H4 service transport.
 The firmware ELF physical addresses must not be copied literally: they lie
 outside this board's reserved region. Firmware, device dumps, identifiers and
 Apple binaries stay outside git under D:/test1/dl/t290-bluetooth.
@@ -50,3 +70,6 @@ Primary implementation references:
 
 Downstream host-ID reference (SMEM_WCNSS=4):
 https://android.googlesource.com/kernel/msm.git/+/e38998faf70429357419a02f5850ceefe9e887b6/include/soc/qcom/smem.h
+
+MDT layout/relocation reference:
+https://github.com/torvalds/linux/blob/v6.12/drivers/soc/qcom/mdt_loader.c
