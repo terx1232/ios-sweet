@@ -6,6 +6,40 @@
 
 ## Active handoff 2026-10-23: missing UI, kernel 0135 installed
 
+- **OTHER-PORT REVIEW + LIVE CAPTURE (2026-10-23).** User asked to research
+  other iOS phone drivers. Read pinned HackiOS userland906425b75e02 + kernel
+  8e61187098f2, NativeAdreno b686b9054f57; see eagl/REFERENCES.md for URLs,
+  compatibility findings and next implementation constraints. Source blobs
+  verified; remote build scripts/binaries NOT run. No borrowed code copied.
+- Found a concrete gap: kernel SweetSurface layout/create ignores
+  IOSurfaceAddress and always allocates/zeros new pixels. Other port maps
+  the original client memory. Live captures of format0,120x120 inputs32/33/34
+  are entirely zero, including RGB and alpha. Need verify their creation
+  properties or test the address contract before claiming root cause.
+  Fix requires preserving client pitch/size/lifetime, handling noncontiguous
+  GPU memory (or a padded copy), and appropriate alpha-first conversion for
+  wrapped inputs. Do NOT reinterpret every format0 GPU scratch target.
+- Device was already iPadOS while researching, so drained live USB at
+  ios-t290/usb-captures/ca-capture1/boot-20261023-131003/. Request done5/5,
+  eagltestexit0, capture enabled. All received USB packets complete inclF.
+  141 CAPBEGINs;69 checksummed records decoded,72 rejected. Inspection of
+  CAPDATA lengths (~239B maximum) shows kernel MESSAGE truncation despite
+  complete USB packets, not evidence all those records had USB drops.
+  Valid kinds:37 state,15 draw,14 upload,3 source inputs. Decoded manifest
+  dl/ca-capture1/decoded. Old records cannot distinguish clears from actual
+  primitives: a program0 record alone does NOT prove a program-less draw.
+- **CAPTURE2 BUILT, NOT STAGED.** Chunk180 (was760); shader log chunks160
+  (was600). Added operation tags for primitives/clear/blit. Parser understands
+  tags, older records remain unknown. 211GLI ABI/ARM64/iOS16/signatures PASS,
+ 10s. Fixture proves180-character chunks survive256-byte truncation and
+  clear/primitives metadata is decoded. Artifact dl/ca-capture2 bridge
+  f7a129cda8545b98197c9414150f0db6d4adcccfa8853e00fa4836e6fe9f9b0c;
+  test unchanged8a957c2c..., current device bridge d3d4f9da... marker2.
+  No rendering workaround enabled. Current SD request consumed but -Result
+  backup bridge/marker/log still needs Android recovery before overwriting.
+  Priority next: investigate/fix IOSurfaceAddress, using other port as a
+  reference; do not repeat generic passed pixel tests or blindly swap A740.
+
 - **CA-CAPTURE1 STAGED (2026-10-23), awaiting manual iPadOS boot.** Android
   root ADB ready. cpu-icons1 request confirmed done3/3, old test/log GETs
   recovered. New request: backup bridge/marker/log GETs first, then ONLY

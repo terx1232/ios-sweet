@@ -255,6 +255,7 @@ enum { DRAW_PRIMITIVES, DRAW_CLEAR, DRAW_ALL_ROWS };
     int _maxLevelState;                 /* 0 unknown, 1 TEXTURE_MAX_LEVEL usable, 2 not */
     uint64_t _waitTicks;
     unsigned _waitCount, _flushCount, _drawCount;
+    unsigned _drawKind;
     struct { void *renderer; void *dispatch[1100]; } _macro;
 }
 @property(nonatomic) unsigned API;
@@ -515,6 +516,7 @@ static void t290_before_draw(int kind)
 {
     T290Context *ctx = current_ctx();
     ++ctx->_drawCount;
+    ctx->_drawKind = (unsigned)kind;
     /* New pixels from another process in a padded texture we sample. */
     for (GLuint u = 0; u < ctx->_units; u++) {
         T290SurfaceImage *img = ctx->_bound[u];
@@ -561,9 +563,9 @@ static void t290_trace_draw(T290Context *ctx)
     gl.GetIntegerv(0x84e0, &active);
     gl.GetIntegerv(0x0ba2, viewport);
     gl.GetIntegerv(0x0c23, mask);
-    plog("TRACE draw %u ctx %p program %d fbo %u viewport %d,%d,%d,%d color-mask %d%d%d%d",
+    plog("TRACE draw %u ctx %p program %d fbo %u viewport %d,%d,%d,%d color-mask %d%d%d%d kind %u",
         n, (__bridge void *)ctx, program, ctx->_drawFbo, viewport[0], viewport[1],
-        viewport[2], viewport[3], mask[0], mask[1], mask[2], mask[3]);
+        viewport[2], viewport[3], mask[0], mask[1], mask[2], mask[3], ctx->_drawKind);
     if ((n <= 12 || !(n & (n - 1))) && gl.GetVertexAttribiv &&
         gl.GetVertexAttribfv && gl.GetVertexAttribPointerv) {
         for (GLuint a = 0; a < 4; a++) {
@@ -635,8 +637,8 @@ static void t290_shader_source(GLuint shader, GLsizei count, const GLchar *const
     static size_t total;
     for (GLsizei i = 0; i < count && total < 49152; i++) {
         size_t size = lengths && lengths[i] >= 0 ? (size_t)lengths[i] : strlen(strings[i]);
-        for (size_t offset = 0; offset < size && total < 49152; offset += 600) {
-            size_t part = MIN((size_t)600, size - offset);
+        for (size_t offset = 0; offset < size && total < 49152; offset += 160) {
+            size_t part = MIN((size_t)160, size - offset);
             plog("TRACE shader %u part %d offset %zu: %.*s", shader, i, offset,
                 (int)part, strings[i] + offset);
             total += part;

@@ -30,10 +30,13 @@ static void capture_stream(const uint32_t *header, const void *data, size_t size
     const uint8_t *bytes = [raw bytes];
     for (NSUInteger i = 0; i < [raw length]; i++) hash = (hash ^ bytes[i]) * 16777619u;
     const char *base64 = [encoded UTF8String];
-    size_t count = (length + 759) / 760;
+    /* Kernel log formatting truncates a message near 256 bytes on this
+     * port even though SweetGPU accepts 1000. Leave room for both prefixes. */
+    const size_t chunk = 180;
+    size_t count = (length + chunk - 1) / chunk;
     plog("CAPBEGIN %u %zu %zu %zu %08x", header[3], count, [packed length], [raw length], hash);
     for (size_t part = 0; part < count; part++) {
-        size_t offset = part * 760, n = MIN((size_t)760, length - offset);
+        size_t offset = part * chunk, n = MIN(chunk, length - offset);
         plog("CAPDATA %u %zu %.*s", header[3], part, (int)n, base64 + offset);
     }
 }
@@ -83,6 +86,8 @@ static void capture_record(T290Context *ctx, unsigned kind, GLuint texture,
         ctx->_boundName[0], ctx->_boundName[1], error, (uint32_t)context, (uint32_t)(context >> 32),
         (uint32_t)ctx->_viewport[0], (uint32_t)ctx->_viewport[1],
         (uint32_t)ctx->_viewport[2], (uint32_t)ctx->_viewport[3], (uint32_t)size};
+    header[29] = ctx->_drawKind;
+    header[30] = 1; /* operation type is present; older records left this0 */
     BOOL ok = capture_write_all(header, sizeof(header)) && capture_write_all(data, size);
     if (ok) {
         capture_bytes += sizeof(header) + size;

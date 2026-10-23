@@ -10,8 +10,11 @@ tests PASS on real ES2/ES3 (ca-half1, ae44121); real CA client values valid.
 CPU-written 120x120 RGBA/BGRA icon import/update test PASS:32 pixel samples,
 both APIs, both CPU updates. Real interface still black/purple. Prepared
 bounded real-CA texture/FBO/state capture with checksummed USB log streaming
-(dl/ca-capture1,7355d35), staged with full readback PASS. Await manual iPadOS
-boot, then drain USB L fully and decode real passes. Marker2, guard intact.
+(dl/ca-capture1,7355d35) ran on hardware:69 records decoded,72 rejected because
+kernel log lines truncate near256B. Three format0 inputs are all zero. New
+180-character capture stream built (dl/ca-capture2), NOT staged. Reference
+review found missing IOSurfaceAddress creation support; see eagl/REFERENCES.md.
+This is a candidate cause, not a verified UI fix. Marker2, guard intact.
 Live CPU config selects ~1.7088GHz, all4 cores; GPU400MHz. Stock tables have
 CPU2016MHz/GPU650MHz (GPU bin0); full DVFS not implemented, no clocks changed.
 No visual fix claimed. Zero-time recount panic recurred on CPU2, unresolved.
