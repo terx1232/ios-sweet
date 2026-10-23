@@ -4,7 +4,7 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff:0142 system fixes prepared, approval pending
+## Active handoff:0142 INSTALLED, hardware test pending
 
 - User requested fixing journal issues, Bluetooth deferred. Patch0142:
   T290 HID transport Embedded instead of incorrect AppleSPU; preserves sensor
@@ -36,9 +36,11 @@
 - Android connected. Full0141 backup in ios-t290/backup-20261023-system0142/
   recovery-before-0142.img, SHA2ab7d974...e0e91 matches current partition.
   Image pushed/data/local/tmp/recovery-0142.img; flash-0142.ps1 read-only
-  preflight PASS. **NOT installed/approved0142.** Ask explicit approval per
-  AGENTS before -WriteApproved. No new SD userland request needed/staged.
-- After approved guarded flash/readback, user manual recovery menu boot;
+  preflight PASS. **0142 INSTALLED after explicit user approval.**
+  flash-0142.ps1 -WriteApproved exit0; full64MiB partition SHA256
+  readback PASS9a650cab...b5e1fb. Result JSON saved in backup directory.
+  No reboot command sent. No new SD userland request needed/staged.
+- Next user manual recovery menu boot;
   dl/t290-system/{wait-collect,collect-live,collect-more}0142.py for nativeUSB.
   Check SWEET RTC epoch, MEM requested/applied/fatal logs, driverkitd and
   AppleSPU assertion count, touch/rotation. Then app tests. No all-fixed claim.

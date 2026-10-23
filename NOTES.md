@@ -5,7 +5,7 @@ for0141 system errors.0142 prepared: Embedded HID transport (no fakeSPU),
 iOS memory-limit API compatibility+bounded driverkitd allowance, calibrated
 read-only PM8953 calendar. Host/ARM64/link/pack/QEMU60s PASS. Android connected,
 0141 backup verified,0142 pushed and read-only flash preflight PASS.
-**0142 NOT installed; explicit recovery-write approval pending.** Hardware
+**0142 INSTALLED after explicit approval; full partition SHA256 readback PASS.** Hardware
 fixes unproven. No BT/60FPS/general app-fix claim. Bluetooth deferred.
 
 ## Agent handoff / active work (2026-10-15, latest)
