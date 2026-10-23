@@ -1,12 +1,12 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
-**SM-T290 active handoff:** read t290/NOTES.md first. User returned priority
-from0142 UI-freeze diagnosis to Bluetooth.0143 built: both SMD banks + heap
-inventory, INFO-only SCM/PIL API availability queries. Compile/link/pack PASS,
-QEMU60s PASS. Android connected,0142 backup and0143 image/push/preflight PASS.
-0143 INSTALLED after explicit approval; full partition SHA readback PASS.
-Next manual iPadOS boot/nativeUSB capture. Preserves0142 RTC/HID/memory fixes. Firmware not loaded,
-Bluetooth not working yet. UI freeze evidence saved, exact cause unresolved.
+**SM-T290 active handoff:** read t290/NOTES.md first.0143 hardware confirms
+SCM64/PIL APIs available; WCNSS heap empty, both SMD banks absent.0144 adds
+PAS6 support query + full firmware-file SHA256 preflight; compile/link/pack/
+QEMU PASS. Android connected,0143 backup/0144 push/preflight PASS. SD4op
+firmware request staged/fullreadback PASS, not consumed. **0144 NOT approved
+or flashed.** Need explicit approval, boot then collect. Firmware not executed,
+Bluetooth not working yet. UI freeze evidence preserved, BT remains priority.
 
 ## Agent handoff / active work (2026-10-15, latest)
 

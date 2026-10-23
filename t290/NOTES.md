@@ -4,6 +4,53 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff2026-10-24:0143 booted,0144 prepared; approval pending
+
+- Actual0143 capture completed139 logs +F3072064B/I121B:
+  ios-t290/usb-captures/0143/boot-20261023-235244-0143. SCM convention64,
+  INFO selfquery1, PIL1/2/5/7 API-available1. WCNSS heap unused uncached0x20,
+  cached-start=size0x2c000; tables13 and266 both-2. No controller commands/HCI.
+  RTC correct, driverkitd6->64MB, GPU guard passes, USB/KXTJ3 client1 live.
+- User returnedAndroid+USB. Read-only proxy inspection saved in
+  dl/t290-bluetooth/android-proxy-{clocks,registers}.txt. L7 1800mV,
+  crypto source100MHz, CMD0x80000000/CFG0x10f; crypto branches idle/off.
+  Correct clock-gcc-8952.c supports gcc-sdm429 (already local dl/t290-usb).
+  gcc-regs.h: CRYPTO_CMD0x16004/CBCR0x1601c/AXI0x16020/AHB0x16024;
+  APPS_BRANCH_VOTE0x45004 bits2/1/0. Future proxy enable must preserve votes,
+  configure verified source and wait boundedly. No BT clock/PMIC writes yet.
+-0144 adds firmware_files.c (t290btfiles=1),60s delayed kernel worker.
+  Queries actual PAS6 support with standard SMC64 PIL7(one scalar6), then
+  checks exact vnode sizes and complete SHA256 for image6574080B and
+  ORIGINAL metadata7324B. Hash constants verified against local manifest.
+  No init/mem_setup/auth_reset, DMA/firmware memory writes, HCI or RF yet.
+  Need next contiguous4K-aligned noncached metadata + proxy resources and
+  proper PIL sequencing; do not call with ordinary heap metadata pointers.
+-0144 two ARM64 objects compile PASS, patch reverse-check PASS, full link0,
+  known shim/DTB and payload roundtrip PASS, QEMU60s no_panic_observed/
+  unknown_glyphs0. Hardware file/PAS6 test NOT verified. Graphics/motion/
+  memory/RTC0142 objects retained. No fix for prior UI freeze claimed.
+- dl/k-t290-0144 recovery64MiB SHA256
+  5c4453da28d39e406b4d5589cdce7a1c0cde1a07ba3fbd03168e5314246f7adc;
+  kernel d1c17c45fd4d76dd0d613c53e5f709b4c0defc86e5199b6e8e4b993852644e71.
+  Helpers dl/t290-bluetooth/*0144*, work bluetooth0144{,-objects},qa0144.
+- SD4op request STAGED: GET previous /usr/lib/wcnss-t290-memory.bin/auth.bin
+  into dl/k-t290-0144/before, PUT verified private image+metadata. These paths
+  were not previously staged. Full40181404B request readback PASS SHA
+  afcaeb708994ecd256afa9abf28f791d3dedff4cda50c5274ff2dfa53d0c241a.
+  An initial verification read rounded DOWN to78479 sectors, missing156B;
+  corrected ceil78480-sector read then exact payload prefix hash PASSED.
+  Card contents unchanged by this verification correction. After boot, recover
+  GETs with -Result before another request. SD request currently NOT consumed.
+-0143 backup verified local/device/current partition in
+  ios-t290/backup-20261024-bluetooth0144/recovery-before-0144.img,
+  SHAe1796bf6...93222a.0144 image pushed; flash-0144.ps1 read-only preflight
+  PASS. **0144 NOT approved/flashed.** Ask explicit partition-write approval
+  per AGENTS; after flash full readback and manual recovery-menu boot.
+  NativeUSB helpers collect-live/collect-more/wait-collect0144.py; inspect
+  PAS6 support and firmware files image=0 metadata=0, plus XFER done4/4.
+
+### Prior0143 preparation/history
+
 ## Latest steering: resume Bluetooth;0143 built, QEMU60s PASS
 
 - User redirected work back to Bluetooth after0142 freeze investigation.

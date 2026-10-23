@@ -11,14 +11,16 @@
 
 extern vm_offset_t ml_io_map(vm_offset_t, vm_size_t);
 void sweet_t290_bt_probe(void);
+extern void sweet_t290_bt_files_start(void);
+int sweet_t290_bt_pas6_supported(void);
 
 /* INFO/IS_CALL_AVAILABLE only: no PIL command is executed. Prefer the
  * detected SMCCC convention; do not try a different ABI after a valid reply. */
-static int bt_scm_available(unsigned wide, unsigned service, unsigned command)
+static int bt_scm_one_arg(uint64_t function, uint64_t argument, uint64_t *value)
 {
-    register uint64_t x0 __asm__("x0") = (wide ? 0xc2000000UL : 0x82000000UL) | 0x601;
+    register uint64_t x0 __asm__("x0") = function;
     register uint64_t x1 __asm__("x1") = 1; /* one value argument */
-    register uint64_t x2 __asm__("x2") = 0x02000000UL | service << 8 | command;
+    register uint64_t x2 __asm__("x2") = argument;
     register uint64_t x3 __asm__("x3") = 0;
     register uint64_t x4 __asm__("x4") = 0;
     register uint64_t x5 __asm__("x5") = 0;
@@ -30,13 +32,32 @@ static int bt_scm_available(unsigned wide, unsigned service, unsigned command)
             "+r"(x4), "+r"(x5), "+r"(x6), "+r"(x7) : :
             "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17", "memory");
         if (x0 == 1) {
-            x1 = 1; x2 = 0x02000000UL | service << 8 | command;
+            x1 = 1; x2 = argument;
             x3 = x4 = x5 = x7 = 0; /* retain Qualcomm continuation cookie x6 */
         }
     } while (x0 == 1 && ++resumes < 64);
     if (x0 == 1) return -2; /* no ABI fallback after incomplete continuation */
     if (x0) return -1;
-    return x1 == 1 ? 1 : 0;
+    *value = x1;
+    return 0;
+}
+
+static int bt_scm_available(unsigned wide, unsigned service, unsigned command)
+{
+    uint64_t value = 0;
+    int status = bt_scm_one_arg((wide ? 0xc2000000UL : 0x82000000UL) | 0x601,
+        0x02000000UL | service << 8 | command, &value);
+    return status ? status : value == 1;
+}
+
+int sweet_t290_bt_pas6_supported(void)
+{
+    /*0143 hardware verified SMC64 and PIL7 availability. This is a query,
+     * not PAS init/auth/reset. Standard calling convention, one scalar6. */
+    uint64_t value = 0;
+    int status = bt_scm_one_arg(0x42000207UL, 6, &value);
+    printf("SWEET BT: PAS6 support query status=%d value=%llu\n", status,value);
+    return status ? status : value != 0;
 }
 
 void sweet_t290_bt_probe(void)
@@ -123,5 +144,6 @@ void sweet_t290_bt_probe(void)
     }
     }
     printf("SWEET BT: probe complete, %u valid channels; no controller commands sent\n", found);
+    sweet_t290_bt_files_start();
 }
 #endif

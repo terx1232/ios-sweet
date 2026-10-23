@@ -90,3 +90,28 @@ API availability alone does not establish PAS6 support or firmware execution.
 
 0143 retains0142 HID/memory/RTC fixes and0139 measured orientation support.
 The reported0142 interface freeze remains unresolved and is a separate issue.
+
+##0143 hardware result and0144 firmware-file preflight
+
+0143 confirmed64-bit SCM INFO and PIL APIs1/2/5/7 available. The WCNSS heap
+is completely unused (uncached end0x20, cached start=size0x2c000); neither
+allocation bank exists. No live HCI controller has been established.
+
+0144 adds `firmware_files.c`, gated by t290btfiles=1. A worker waits60s for
+root mount and SD transfer, asks PIL7 whether PAS6 is supported, then reads
+both files with exact size and full SHA256 verification. No init/mem_setup/
+auth_reset, device-memory writes or radio traffic occur in this phase.
+
+Prepared private files are installed through the existing SD transfer path:
+/usr/lib/wcnss-t290-memory.bin (6574080B), /usr/lib/wcnss-t290-auth.bin (7324B).
+Hashes bind these inputs to the offline relocation/metadata preparation.
+They remain outside git. Actual authentication and controller execution still
+require contiguous,4K-aligned,noncached metadata and the proxy resources.
+The0144 boot test does not implement Bluetooth pairing.
+
+Android proxy inspection: pm8953_l7=1800mV; crypto_clk_src=100MHz, CFG0x10f,
+three crypto branches off when idle. Correct SDM429 provider is downstream
+clock-gcc-8952.c; local source already in dl/t290-usb (reference revision there).
+Do not use8953 branch definitions by assumption. Crypto branches are voted
+through APPS vote0x45004 bits0/1/2, with CBCR0x16024/0x16020/0x1601c.
+No such clock votes have been changed by our Bluetooth code yet.
