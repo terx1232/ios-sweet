@@ -1,14 +1,12 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
-**SM-T290 active handoff:** read t290/NOTES.md first.0139 prepared:
-measured accelerometer axes, Apple HID matching, normal orientation-manager
-bridge and SD-root process sampler for unresolved UI hangs. Source and build
-checks PASS;60s QEMU PID1 alive/no observed panic. Real rotation and hang fix
-NOT verified. Android connected,0138 backup verified,0139 image pushed and
-read-only preflight PASS. New bridge/test SD request8ops staged/full readback
-PASS. Recovery0139 INSTALLED after explicit approval; full partition SHA readback
-PASS1ef03e39...93f259. Next manual boot and actual rotation/hang tests. No clocks
-changed, no60FPS/app-fix claim. See t290/motion/README.md and active notes.
+**SM-T290 active handoff:** read t290/NOTES.md first.0139 installed and
+user confirmed working automatic rotation. Current work: Bluetooth Pronto.
+0140 read-only WCNSS SMEM probe built/tested; QEMU60s PID1 alive/no observed
+panic. Android connected,0139 backup verified,0140 pushed, read-only preflight
+PASS. **0140 NOT installed: explicit partition-write approval pending.**
+No Bluetooth HCI response/pairing yet. No clock changes or60FPS/app-fix claim.
+See t290/bluetooth/README.md, motion/README.md and active notes.
 
 ## Agent handoff / active work (2026-10-15, latest)
 

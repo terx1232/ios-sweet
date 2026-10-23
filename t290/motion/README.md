@@ -22,8 +22,8 @@ The filter holds the last orientation when flat or near a diagonal, rejects
 invalid/vigorous samples, smooths readings and requires 350ms of stable pose.
 `test-orientation.c` passed ASan/UBSan using recorded poses, all four screen
 directions, flat/diagonal positions, jitter, invalid and stale samples.
-The exact Objective-C hook has compiled and passed ABI inspection but still
-requires a real boot test. **Auto rotation is not yet hardware verified.**
+0139 hardware boot confirmed the normal manager hook and KXTJ3 sender;
+the user confirmed working automatic rotation. Stability remains unproven.
 
 0139 also starts the existing process-stack sampler on SD-root boot (it was
 previously called only by UFS/virtio roots). SpringBoard is included in the
