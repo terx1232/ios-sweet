@@ -4,7 +4,31 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff 2026-10-23: recovery0136 installed, awaiting first boot
+## Active handoff 2026-10-23: 0136 icons restored; missing CA passes under investigation
+
+- **0136 BOOT VERIFIED.** Native USB capture in
+  `ios-t290/usb-captures/ca-address1/boot-20261023-164443-0136`.
+  SD request consumed8/8; new eagltest exit0 with real FD504 pixels in
+  ES2+ES3, including original client pixels,480/512 strides, CPU updates,
+  GPU publish/padding and immutable mappings. Guard enabled Mesa.
+  User and screenshot confirm icons now visible, but background missing,
+  text purple and broad UI defects remain. Source42/46/48 contain nonzero
+  color+alpha, unlike zero-filled0135 inputs. No full UI fix claimed.
+- Fixed capture decoder: concatenate USB log slices before splitting lines.
+  A64KiB L packet can cut CAPDATA midline. Actual capture now143/143 valid
+  records,0 rejected; fixture tests every text byte split and rejects missing
+  chunks. Isolate boots; sequence IDs restart. Need recover SD backup GETs
+  with t290-xfer.ps1 -Result on Android BEFORE replacing the current request.
+- Concrete remaining failure: primitive draw10, FBO5/255x153, program0,
+  nonempty input texture7, all-zero output. Purple already exists in an
+  uploaded bitmap, so blanket swizzling/recoloring would be unjustified.
+  Investigating missing CA GLES functions against pinned HackiOS source
+  and our actual16.7 QuartzCore UUID9e40b2eb260c3af1ae45a1a551a8c1b9.
+  Local readonly DSC restored via apfs-fuse at /home/kirill/sysos.
+  Verified GLES vtable1d57df6e8; draw_elements slots1d57df7f8/1d57df800,
+  targets1884316d0/18838591c; uniform slot1d57dfa80->1884321ac.
+  Context+0x10 then state+0x10 function word matches actual disassembly.
+  No new rendering code installed yet; device remains iPadOS/COM7.
 
 - **RECOVERY0136 INSTALLED — user explicitly approved ("разпешаю").**
   Ran guarded `ios-t290/backup-20261023-gpu0136/flash-0136.ps1 -WriteApproved`.

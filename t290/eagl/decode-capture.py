@@ -24,15 +24,17 @@ KINDS = {1: 'upload', 2: 'draw', 3: 'surface-input', 4: 'present-surface1', 5: '
 
 def extract_logs(logdir, destination):
     beginnings, chunks = {}, {}
-    for path in sorted(logdir.glob('*.txt')):
-        for line in path.read_text(errors='replace').splitlines():
-            m = re.search(r'\bCAPBEGIN (\d+) (\d+) (\d+) (\d+) ([0-9a-f]{8})', line)
-            if m:
-                seq, count, packed, raw = map(int, m.groups()[:4])
-                beginnings[seq] = (count, packed, raw, int(m[5], 16))
-            m = re.search(r'\bCAPDATA (\d+) (\d+) ([A-Za-z0-9+/=]+)', line)
-            if m:
-                chunks.setdefault(int(m[1]), {})[int(m[2])] = m[3]
+    # USB L replies are byte slices of one stream, not line-aligned files.
+    # Join before splitting so a CAPDATA line crossing 64KiB stays intact.
+    stream = ''.join(path.read_text(errors='replace') for path in sorted(logdir.glob('*.txt')))
+    for line in stream.splitlines():
+        m = re.search(r'\bCAPBEGIN (\d+) (\d+) (\d+) (\d+) ([0-9a-f]{8})', line)
+        if m:
+            seq, count, packed, raw = map(int, m.groups()[:4])
+            beginnings[seq] = (count, packed, raw, int(m[5], 16))
+        m = re.search(r'\bCAPDATA (\d+) (\d+) ([A-Za-z0-9+/=]+)', line)
+        if m:
+            chunks.setdefault(int(m[1]), {})[int(m[2])] = m[3]
     complete, skipped = [], {}
     for seq, (count, packed_size, raw_size, expected_hash) in sorted(beginnings.items()):
         try:

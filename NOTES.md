@@ -5,9 +5,10 @@ Patch0136 and matching EAGL bridge now implement IOSurfaceAddress with pinned
 client memory and an aligned GPU backing. Full kernel linked locally in WSL
 (GitHub Actions dispatch blocked HTTP422),90s QEMU no panic, not a UI test.
 64MiB image a21119db...222914 INSTALLED after explicit0136 user approval;
-full partition SHA readback PASS,0135 backed up. Android still running.
-Bridge/test/marker2 SD request staged8ops, full readback PASS; not consumed.
-First0136 boot pending. See active t290/NOTES.md for exact hashes, local
+full partition SHA readback PASS,0135 backed up. First0136 boot verified:
+8/8 SD operations, real ES2+ES3 client-memory GPU tests PASS, guard enabled.
+Icons restored; wallpaper/text/effects still broken. Capture143/143 records
+valid after fixing log-slice joining. See active t290/NOTES.md for hashes, local
 build recipe and pending hardware tests. Last tested0135 boot had active
 GPU compositor with widely missing UI content.
 User priority is content first, FPS later. Real CA shader/texture trace and
