@@ -4,7 +4,22 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff 2026-10-23: CA passes1 staged, awaiting hardware test
+## Active handoff 2026-10-23: CA passes1 hardware PASS; missing45/28 observed
+
+- **ca-passes1 BOOT VERIFIED, real GPU PASS ES2+ES3.** New request8/8;
+  all five missing-program pixel/state cases pass in both APIs, testexit0,
+  guard enabled Mesa. Backboardd hook installed with protection0, UUID/slots
+  matched. Native primitive draw10 confirmed function20, replacementprogram8;
+  output now alpha0..255 with10991 nonzero pixels (RGB0: intended alpha mask),
+  versus allzero prior0136.112/112 capture records decoded,0 rejected.
+  Live boot folder ios-t290/usb-captures/ca-passes1/boot-20261023-174248-0136-ca-passes1.
+  Initial collection caught early xfer; append logs002..011, latest complete
+  frame frame-174637.png. Home still black with purple text/white widgets.
+  New native programless function45 atdraw43 (FBO1/800x1280, source15/2x62)
+  and28 atdraw66. Function40 explicitly reports unsupported0. These remain
+  unimplemented; no blanket copy/recolor applied. Device is now iPadOS/COM7.
+  Current installed library/test hashes below; GET backups pending -Result.
+  Source implementation committed/pushed ae5e269; working on next passes.
 
 - **ca-passes1 USERLAND UPDATE STAGED, full SD readback PASS.** Android/root
   ADB appeared during work. Recovered old0136 request GETs first, complete8/8;
