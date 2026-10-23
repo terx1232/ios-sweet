@@ -4,7 +4,13 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff2026-10-24:0145 GPU fault captured;0146 ready, NOT installed/approved
+## Active handoff2026-10-24:0145 GPU fault captured;0146 INSTALLED, hardware test pending
+
+- User explicitly approved recovery0146. Guard flash-0146.ps1
+  -WriteApproved exit0; complete preflight,64MiB write and full partition
+  readback SHA2569efbdee020b4c877f3f0864c0c89c64da7d7c9793cf5a3d5b2f6b1871a7368e8
+  PASS. flash-0146-result.json saved alongside0145 backup. No reboot sent.
+  Next manual recovery-menu boot; capture via dl/t290-stability/collect-live0146.py.
 
 - User reported0145 frozen. NativeUSB COM7 remained live; capture saved in
   ios-t290/usb-captures/0145/boot-20261024-003258-0145,106 log records
@@ -45,8 +51,8 @@
   ios-t290/backup-20261024-stability0146/recovery-before-0146.img,
   SHAfbff4649a6c8fe58d3f792869e6393eae2c4773b0ab8f01291b6faeb820571d2.
   Final0146 pushed; guarded read-only flash-0146.ps1 preflight PASS.
-  NO0146 write approval. Ask explicit approval under AGENTS.md, then guarded
-  -WriteApproved/full readback; manual boot and reproduce Safari+rotation.
+ 0146 now explicitly approved and installed, full readback result above.
+  Next manual boot and reproduce Safari+rotation.
   Capture fault and retaining-busy-buffer logs; further fault mapping history
   or GPU recovery may be needed if fault persists.
 - Helpers dl/t290-stability/*0146*, baseline0145 files saved there.

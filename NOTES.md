@@ -6,7 +6,8 @@ sensor alive. Budget peak~63MiB, no rejections.0146 built/tested/QEMU60sPASS:
 wait before buffer unmap, retain imported surfaces, retain timed-out client,
 accept exact last-pixel extent for caller textures. Cause of actual fault
 still not proven. Android ready;0145 backup and0146 push/preflight PASS.
-0146 NOT installed/approved; next ask write approval, then hardware test.
+0146 INSTALLED after explicit approval; guarded write exit0, full64MiB
+partition SHA256 readback PASS. Next manual boot and hardware stability test.
 Read t290/NOTES.md first.
 
 **Prior0145 handoff:** GPU stability is now the priority;
