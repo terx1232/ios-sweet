@@ -4,7 +4,42 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff 2026-10-23: CA passes1 hardware PASS; missing45/28 observed
+## Active handoff 2026-10-23: PRIORITY FPS and app stability;0137 prepared
+
+- User explicitly postponed remaining UI effects/Metal and wants faster UI
+  and apps to stop closing. Also explicitly dropped clock changes: DO NOT
+  spend further work on matching Android clocks. Safari hangs; Preferences
+  and MobileSlideShow abort immediately. Device last iPadOS/COM7. Earlier
+  Android request for clocks is obsolete; no need to collect DVFS tables.
+- Unfinished function45/28 work preserved outside git in
+  dl/ca-passes2/wip-saved/{effects45-28.patch,source copies,state.json}; only
+  compiled, no pixel tests, NOT installed. Restored sources to ca-passes1
+  before the FPS/stability edits. Current installed version still ae5e269.
+- Fresh native USB logs appended012..016 to same ca-passes1 boot folder.
+  Native UseProgram GL_INVALID_OPERATION grows to256; added bounded shader
+  compile/link failure logs to identify missing shader semantics. No new
+  library installed. Current capture marker2 expensive; use marker0 for next
+  performance test, retain guard. Bridge fps counter counts scanout-like GL
+  flushes, NOT actual panel frames (reports~128 while panel~16). Suspect
+  excess full-screen flush waits; synchronization change NOT implemented.
+  Actual panel conversion~4.64ms, no demonstrated60fps yet.
+- Concrete repeated failure at app transitions: client-memory137x137,
+  pitch576, explicitAllocSize0 ->BadArgument. New patch0137 treats zero as
+  automatic size like omitted size, while positive short lengths still fail.
+  Host actual-layout ASan/UBSan PASS including137x137/78912 and short78911.
+  Hardware guard changes BGRA client case to explicit0; REQUIRES0137, do not
+  install that test on0136. Surface single-file ARM64 compile PASS; full
+  local relink client0137 exit0. No partition written or approval requested.
+  Build scripts dl/{build-fps-stability1.sh,relink0137.py,pack0137.sh}.
+  New recovery packing started; outputs dl/k-t290-0137. Next verify image,
+  QEMU smoke and backups before requesting each recovery partition write.
+  New boot args add sweetscan Preferences/MobileSlideShow and sweetsample
+  MobileSafari/Preferences/MobileSlideShow/backboardd for real failure causes.
+- App crash symbolication: both SIGABRT uncaught C++/ObjC terminate through
+  libdispatch. Photos stack includes PhotosUICore px_rootAlbumCollectionList;
+  Settings includes FBS serial queue. Reasons not captured yet; do not claim
+  surface fix establishes their cause. Crash slide0x2fc88000. Reader remains
+  dl/gli/mapped_query.py, readonly cryptex mounted /home/kirill/sysos.
 
 - **ca-passes1 BOOT VERIFIED, real GPU PASS ES2+ES3.** New request8/8;
   all five missing-program pixel/state cases pass in both APIs, testexit0,

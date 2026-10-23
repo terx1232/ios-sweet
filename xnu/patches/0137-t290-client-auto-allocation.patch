@@ -1,0 +1,13 @@
+--- a/iokit/Kernel/arm/SweetSurface.cpp
++++ b/iokit/Kernel/arm/SweetSurface.cpp
+@@ -381,7 +381,9 @@
+ 	uint64_t alloc = sweet_dict_u32(props, "IOSurfaceAllocSize", 0);
+ 	if (wrapped) {
+ 		/* Never extend a caller-owned allocation or alter its row layout. */
+-		if (props->getObject("IOSurfaceAllocSize") == NULL) {
++		/* Zero requests automatic sizing, as does an omitted size.
++		 * Positive undersized allocations must still be refused. */
++		if (alloc == 0) {
+ 			alloc = end;
+ 		}
+ 		if (alloc < end) {

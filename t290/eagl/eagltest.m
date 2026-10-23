@@ -345,7 +345,9 @@ static int test_luminance_alpha(id ctx, struct Macro *m, GLuint targetFbo, unsig
                 dest[2] = rgba[bgra ? 0 : 2]; dest[3] = rgba[3];
             }
             props[@"IOSurfaceAddress"] = @((uintptr_t)original);
-            props[@"IOSurfaceAllocSize"] = @(sourceSize);
+            /* A real CA137x137 allocation supplied size0 for automatic
+             * sizing;0136 rejected it during app transitions. */
+            props[@"IOSurfaceAllocSize"] = c == 3 ? @0 : @(sourceSize);
             if (c == 2) {
                 NSMutableDictionary *bad = [props mutableCopy];
                 bad[@"IOSurfaceAllocSize"] = @(sourceSize - 1);

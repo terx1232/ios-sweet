@@ -686,6 +686,32 @@ static void t290_attach_shader(GLuint program, GLuint shader)
     gl.AttachShader(program, shader);
     if (trace_render) plog("TRACE program %u shader %u", program, shader);
 }
+/* UseProgram INVALID_OPERATION alone hides the useful compile/link reason.
+ * Report failed objects even with expensive texture capture disabled. */
+static void t290_compile_shader(GLuint shader)
+{
+    gl.CompileShader(shader);
+    GLint ok = 0;
+    gl.GetShaderiv(shader, 0x8b81, &ok);
+    static unsigned failures;
+    if (!ok && failures++ < 24) {
+        char log[192] = {0};
+        gl.GetShaderInfoLog(shader, sizeof(log), NULL, log);
+        plog("t290eagl: shader %u compile FAILED: %s", shader, log);
+    }
+}
+static void t290_link_program(GLuint program)
+{
+    gl.LinkProgram(program);
+    GLint ok = 0;
+    gl.GetProgramiv(program, 0x8b82, &ok);
+    static unsigned failures;
+    if (!ok && failures++ < 24) {
+        char log[192] = {0};
+        gl.GetProgramInfoLog(program, sizeof(log), NULL, log);
+        plog("t290eagl: program %u link FAILED: %s", program, log);
+    }
+}
 
 static GLint t290_uniform_location(GLuint program, const GLchar *name)
 {

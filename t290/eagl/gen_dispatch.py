@@ -78,6 +78,8 @@ special = {
     'generate_mipmap_EXT': 't290_generate_mipmap',
     'shader_source_ARB': 't290_shader_source',
     'attach_object_ARB': 't290_attach_shader',
+    'compile_shader_ARB': 't290_compile_shader',
+    'link_program_ARB': 't290_link_program',
     'get_uniform_location_ARB': 't290_uniform_location',
     'use_program_object_ARB': 't290_use_program',
     'uniform_matrix4fv_ARB': 't290_uniform_matrix4fv',

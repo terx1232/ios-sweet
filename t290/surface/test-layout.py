@@ -78,6 +78,15 @@ int main() {
     p.number("IOSurfaceBytesPerRow", 480); p.number("IOSurfaceOffset", 0);
     p.objects.erase("IOSurfaceAllocSize");
     assert(sweet_surface_layout(&s, &p, true) == 0 && s.allocSize == 57600);
+    p.number("IOSurfaceAllocSize", 0);
+    assert(sweet_surface_layout(&s, &p, true) == 0 && s.allocSize == 57600);
+    p.number("IOSurfaceWidth", 137); p.number("IOSurfaceHeight", 137);
+    p.number("IOSurfaceBytesPerRow", 576);
+    assert(sweet_surface_layout(&s, &p, true) == 0 && s.allocSize == 78912);
+    p.number("IOSurfaceAllocSize", 78911);
+    assert(sweet_surface_layout(&s, &p, true) == kIOReturnBadArgument);
+    p.number("IOSurfaceWidth", 120); p.number("IOSurfaceHeight", 120);
+    p.number("IOSurfaceBytesPerRow", 480); p.objects.erase("IOSurfaceAllocSize");
     OSDictionary plane;
     plane.number("IOSurfacePlaneWidth", 60); plane.number("IOSurfacePlaneHeight", 60);
     plane.number("IOSurfacePlaneBytesPerElement", 2);
