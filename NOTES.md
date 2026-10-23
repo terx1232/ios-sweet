@@ -1,6 +1,16 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
-**SM-T290 active handoff2026-10-24:**0145 froze in Safari. Live USB captured
+**SM-T290 active handoff2026-10-24:** User reports no freeze on0146 so far,
+but missing/corrupt elements remain.0146 USB capture shows inverse-mask
+fragment compile failure (coord_arg undeclared), plus skipped CA passes28/45.
+ui0146a bridge/test built; ES2/ES3 software pixel checks PASS; adds narrow
+compiler-error-gated repair, guard and bounded diagnostics for other passes.
+Android confirmed; first SD staging stopped before write when ADB dropped.
+Retry succeeded:6ops/51039746B staged, full SD readback SHA256 PASS.
+Next manual boot/USB capture (dl/ui0146a/collect-live.py).
+Recovery0146 remains installed. Full compositor correctness NOT established.
+
+**Prior0146 kernel handoff:**0145 froze in Safari. Live USB captured
 actual GPU SMMU fault FSR0x202/FAR0x10ae4600, fence stuck17737; kernel/USB/
 sensor alive. Budget peak~63MiB, no rejections.0146 built/tested/QEMU60sPASS:
 wait before buffer unmap, retain imported surfaces, retain timed-out client,

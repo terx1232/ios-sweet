@@ -4,7 +4,49 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff2026-10-24:0145 GPU fault captured;0146 INSTALLED, hardware test pending
+## Active handoff2026-10-24:0146 UI capture, ui0146a bridge ready
+
+- User reports0146 has not frozen so far; prioritizes missing/corrupt UI
+  throughout the system. Capture ios-t290/usb-captures/0146/
+  boot-20261024-004652-0146:147 log records, full F3072064B/I121B. Screen
+  captured lock screen black with purple Press home text (orientation rotated).
+  No observed GPU timeout/quarantine; graphics sample used28966376B,
+  peak144617068B/denied0. This is limited observation, not long-term stability.
+- Guard ES2/ES3 passed,137x13778884-byte client textures now accepted.
+  Actual shader95 compile failure: coord_arg undeclared; program96 link fails,
+  repeated GL0x502 after use_program_object_ARB. Programless functions20/89
+  handled,45/28 still skipped; failed native function6 loses inverse mask.
+  Prior ca-passes1/log012 has complete corresponding shader85 trace: clamp
+  texcoord1_0 against undeclared coord_arg, color*s0*(1-s1.a). No Apple dump
+  copied into git; independently written minimal fixture used for tests.
+- ui0146a ca_shader_compat.h only repairs that observed pattern after compiler
+  error explicitly reports coord_arg undeclared. Adds lowpvec4 declaration,
+  retries, initializes normalized full-image bounds at link, restores prior
+  GL program; caller clamp uniforms can override. No versioned GLSL or generic
+  missing-variable rewriting; no arbitrary replacement for28/45. Missing
+  caller subrectangle bounds remain a limitation. Bounded uniforms/texture IDs
+  for28/45 and four failed shader sources logged to guide later fixes.
+- Local build /home/kirill/t290-toolchain/build-ui0146a PASS:275 explicit GLI
+  signatures,975 adapters, ARM64 iOS16.0, ad-hoc SHA256 pages/entitlements.
+  ES2/ES3 software Mesa tests PASS: original copy/color matrix regression,
+  actual compiler failure+retry/helper, left/right alpha mask pixels, explicit
+  clamp override, refusal cases. New device guard tests real GLI hooks and
+  link-state restoration; fake-GPU pixels explicitly not asserted.
+- dl/ui0146a bridge SHA256
+  064a10edcaa0d8df061be0df11b4031cfaf1cffaabc0782e6a51d34e04736b51;
+  eagltest72071e9e448ac5d4cb309372218e0ffd9d61a4b9c8b85d00b0ec426373c7dee3.
+  User returnedAndroid+USB. First stage.ps1 passed model check then ADB
+  disconnected at previous-request -Result before any write. Retry succeeded:
+  dl/ui0146a/stage.ps1 recovered prior request, staged3GET+3PUT, old bridge/
+  test/trace backup, install new bridge/test and trace0; full SD readback check.
+  Request51039746B, complete SD readback prefix SHA256 PASS; sd-staged.json
+  records hash/build. Request staged, not consumed; GET backups available
+  after next boot via -Result. No recovery written. Next manual boot then
+  USB capture dl/ui0146a/collect-live.py of guard,
+  inverse-mask compile/link repair, skipped-pass parameters and new errors.
+  User's whole-interface correctness objective remains unfinished.
+
+## Prior0146 kernel installation
 
 - User explicitly approved recovery0146. Guard flash-0146.ps1
   -WriteApproved exit0; complete preflight,64MiB write and full partition

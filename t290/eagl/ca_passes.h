@@ -76,6 +76,20 @@ static void ca_uniform(void *context, unsigned index, size_t components,
     size_t count, const GLfloat *values)
 {
     ca_remember(context, index, components, count, values);
+    unsigned function=ca_function(context);
+    if ((function==28 || function==45) && components && components<=4 && count<=20) {
+        static unsigned samples[2];
+        unsigned which=function==45;
+        if (__atomic_fetch_add(&samples[which],1,__ATOMIC_RELAXED)<8) {
+            GLfloat copy[80]={0}; size_t n=components*count;
+            if (n && ca_read(values,copy,n*sizeof(GLfloat))) {
+                plog("t290eagl: missing pass %u uniform %u components %zu count %zu",function,index,components,count);
+                for(size_t i=0;i<n;i+=4)
+                    plog("t290eagl: missing pass %u values %zu %.8g %.8g %.8g %.8g",function,i,
+                        copy[i],i+1<n?copy[i+1]:0,i+2<n?copy[i+2]:0,i+3<n?copy[i+3]:0);
+            }
+        }
+    }
     ca_original_uniform(context, index, components, count, values);
 }
 
@@ -191,6 +205,11 @@ static int t290_ca_draw_begin(T290Context *ctx)
     if (function < 256 && !__atomic_exchange_n(&logged[function], 1, __ATOMIC_RELAXED)) {
         plog("t290eagl: CA programless function %u, ctx %p, draw %u", function,
             ca_drawing_context, ctx->_drawCount);
+        if(function==28 || function==45)
+            plog("t290eagl: missing pass %u textures %u,%u target %u source surfaces %u,%u",
+                function,ctx->_boundName[0],ctx->_boundName[1],ctx->_drawFbo,
+                ctx->_bound[0]?IOSurfaceGetID(ctx->_bound[0]->source):0,
+                ctx->_bound[1]?IOSurfaceGetID(ctx->_bound[1]->source):0);
     }
     if (function != 20 && function != 89) return CA_PASS_SKIP;
     GLfloat matrix[16];

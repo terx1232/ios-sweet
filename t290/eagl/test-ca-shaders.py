@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tempfile
 
 if len(sys.argv) == 1:
     for version in (2, 3):
@@ -87,9 +88,22 @@ def shipped(name):
                    re.findall(r'"(?:[^"\\]|\\.)*"', match[1])).encode()
 
 
-def compile_program(fragment):
+compat_tmp = tempfile.TemporaryDirectory(prefix='t290-ca-compat-')
+compat_path = Path(compat_tmp.name)
+compat_path.joinpath('compat.c').write_text(
+    '#include <stdlib.h>\n#include <string.h>\n' +
+    Path(__file__).with_name('ca_shader_compat.h').read_text() +
+    '\nchar *repair(const char *s,const char *e){return t290_ca_coord_source(s,e);}\n')
+subprocess.run(['clang','-shared','-fPIC',str(compat_path/'compat.c'),'-o',str(compat_path/'compat.so')],check=True)
+compat = C.CDLL(str(compat_path/'compat.so'))
+repair = api(compat,'repair',P,C.c_char_p,C.c_char_p)
+release = api(C.CDLL(None),'free',None,P)
+
+
+def compile_program(fragment, vertex=None):
     program = create_program()
-    for typ, body in ((0x8b31, shipped('ca_vertex_source')), (0x8b30, shipped(fragment))):
+    for typ, body in ((0x8b31, vertex or shipped('ca_vertex_source')),
+                      (0x8b30, fragment if isinstance(fragment,bytes) else shipped(fragment))):
         shader = create_shader(typ)
         strings = (C.c_char_p * 1)(body)
         source(shader, 1, strings, None)
@@ -98,6 +112,18 @@ def compile_program(fragment):
         shader_iv(shader, 0x8b81, C.byref(ok))
         log = C.create_string_buffer(4096)
         shader_log(shader, len(log), None, log)
+        if not ok.value and vertex is not None and typ == 0x8b30:
+            assert b'coord_arg' in log.value and b'undeclared' in log.value,log.value
+            fixed = repair(body,log.value)
+            assert fixed
+            try:
+                strings=(C.c_char_p*1)(C.string_at(fixed))
+                source(shader,1,strings,None)
+                compile_shader(shader)
+                shader_iv(shader,0x8b81,C.byref(ok))
+                shader_log(shader,len(log),None,log)
+            finally:
+                release(fixed)
         assert ok.value, log.value
         attach(program, shader)
     for index, name in enumerate((b'p', b'c', b't')):
@@ -175,7 +201,36 @@ for version in (int(sys.argv[1]),):
         draw(4,0,3)
         expect(pixel(32,32), [0,0,0,0])
         print(f'PASS ES{version} {name}: 4 quadrants/RGBA, matrix/clamp, clip transform')
+    # Compile the same independently written fixture as the device GLI guard.
+    fixture=Path(__file__).with_name('eagltest.m').read_text().split('static int test_ca_inverse_mask',1)[1]
+    literals=fixture.split('const char *sources[]={',1)[1].split('};',1)[0]
+    literals=re.sub(r'"\s*"','',literals)
+    vertex,fragment=[v.encode() for v in ast.literal_eval('['+literals+']')]
+    error_text=b"coord_arg undeclared"
+    assert not repair(fragment,b'unrelated error')
+    assert not repair(b'#version 100\n'+fragment,error_text)
+    assert not repair(b'uniform lowp vec4 coord_arg;\n'+fragment,error_text)
+    assert not repair(b'void main(){}',error_text)
+    program=compile_program(fragment,vertex)
+    use(program)
+    mask=(C.c_ubyte*8)(0,0,0,0,0,0,0,255)
+    tex_image(0x0de1,0,0x1908,2,1,0,0x1908,0x1401,mask)
+    vertices2=(F*6)(-1,-1,3,-1,-1,3)
+    buffer_data(0x8892,C.sizeof(vertices2),vertices2,0x88e4)
+    attribute_index=api(gl,'glGetAttribLocation',I,U,C.c_char_p)(program,b'position')
+    pointer(attribute_index,2,0x1406,0,0,None)
+    enable_array(attribute_index)
+    bounds=uniform(program,b'coord_arg')
+    assert bounds>=0
+    vec4(bounds,1,(F*4)(0,0,1,1))
+    draw(4,0,3)
+    expect(pixel(16,16),[128,64,32,255]);expect(pixel(48,16),[0,0,0,0])
+    vec4(bounds,1,(F*4)(0,0,0,1))
+    draw(4,0,3)
+    expect(pixel(48,16),[128,64,32,255])
+    print(f'PASS ES{version} inverse-mask compiler failure/retry, both halves and caller clamp override; refusal cases')
     assert current(display, None, None, None)
     destroy_context(display, ctx)
     destroy_surface(display, pb)
 terminate(display)
+compat_tmp.cleanup()

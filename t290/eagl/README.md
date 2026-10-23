@@ -101,3 +101,27 @@ transforms. It does not execute the iOS hooks or Adreno. The real-device
 guard adds missing-program copy, live matrix updates, color matrix, feedback
 prevention, unknown-operation skip and GL state restoration in both APIs.
 Build success and software pixels alone are not proof of a repaired desktop.
+# Inverse-mask shader compatibility (ui0146a)
+
+0146 hardware logs contain a fragment compile error for undeclared
+`coord_arg`, followed by program link failure and INVALID_OPERATION on
+UseProgram. A previous full shader trace independently identifies the
+inverse-mask operation and its missing clamp declaration. Passes28/45
+remain unsupported and are not replaced with arbitrary copies.
+
+The bridge retries only the observed inverse-mask source pattern after the
+compiler specifically reports that undeclared identifier. It adds the
+missing vec4 uniform; link initializes normalized full-image bounds while
+preserving the previously bound program. The caller can override the
+clamp rectangle normally. Versioned GLSL and other shader patterns are
+excluded. This does not implement every compositor effect or establish
+correct subrectangle bounds when the caller omits them.
+
+The independently written device guard checks both mask halves, explicit
+clamp override and link-state preservation in ES2/ES3. Fake-GPU runs skip
+pixel assertions. `test-ca-shaders.py` compiles the actual compatibility
+helper, reproduces the compiler failure/retry, checks mask pixels with
+software Mesa and checks refusal cases. Hardware validation remains required.
+Missing passes28/45 log bounded uniforms and texture IDs for follow-up;
+other failed shader sources are captured independently of expensive frame
+tracing. No support flags are overridden.

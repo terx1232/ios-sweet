@@ -18,7 +18,7 @@ test -f "$layout"
 test -f "$gl_headers/gl.h"
 mkdir -p "$out/source"
 out=$(cd "$out" && pwd)
-cp "$here/eaglshim.m" "$here/eagltest.m" "$here/gl_types.h" "$here/surface.h" "$here/capture.h" "$here/ca_passes.h" "$here/ca_shaders.h" "$here/orientation.h" "$here/orientation_filter.h" "$out/source/"
+cp "$here/eaglshim.m" "$here/eagltest.m" "$here/gl_types.h" "$here/surface.h" "$here/capture.h" "$here/ca_passes.h" "$here/ca_shaders.h" "$here/ca_shader_compat.h" "$here/orientation.h" "$here/orientation_filter.h" "$out/source/"
 python3 "$here/verify-gli-calls.py" "$layout" "$here/eagltest.m"
 python3 "$here/gen_dispatch.py" "$sdk" "$out/source/dispatch_generated.h" \
     --layout "$layout" --gl-headers "$gl_headers"
@@ -39,6 +39,6 @@ python3 "$here/verify-local.py" "$out" "$here/../ios/ent.plist"
     "$cc" --version
     "$ld" --version
     sha256sum "$layout" "$out/source/dispatch_generated.h"
-    sha256sum "$here/eaglshim.m" "$here/eagltest.m" "$here/gen_dispatch.py" "$here/capture.h" "$here/ca_passes.h" "$here/ca_shaders.h" "$here/orientation.h" "$here/orientation_filter.h"
+    sha256sum "$here/eaglshim.m" "$here/eagltest.m" "$here/gen_dispatch.py" "$here/capture.h" "$here/ca_passes.h" "$here/ca_shaders.h" "$here/ca_shader_compat.h" "$here/orientation.h" "$here/orientation_filter.h"
 } > "$out/build-info.txt"
 echo "Local ARM64 iOS build complete: $out (${SECONDS}s)"

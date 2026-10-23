@@ -58,6 +58,8 @@ static struct {
     void (*DeleteShader)(GLuint), (*DeleteProgram)(GLuint);
     void (*GetShaderiv)(GLuint, GLenum, GLint *), (*GetProgramiv)(GLuint, GLenum, GLint *);
     void (*GetShaderInfoLog)(GLuint, GLsizei, GLsizei *, GLchar *);
+    void (*GetShaderSource)(GLuint, GLsizei, GLsizei *, GLchar *);
+    void (*GetAttachedShaders)(GLuint, GLsizei, GLsizei *, GLuint *);
     void (*GetProgramInfoLog)(GLuint, GLsizei, GLsizei *, GLchar *);
     const GLubyte *(*GetString)(GLenum);
     void (*BindFramebuffer)(GLenum, GLuint);
@@ -688,11 +690,40 @@ static void t290_attach_shader(GLuint program, GLuint shader)
 }
 /* UseProgram INVALID_OPERATION alone hides the useful compile/link reason.
  * Report failed objects even with expensive texture capture disabled. */
+#include "ca_shader_compat.h"
 static void t290_compile_shader(GLuint shader)
 {
     gl.CompileShader(shader);
     GLint ok = 0;
     gl.GetShaderiv(shader, 0x8b81, &ok);
+    if (!ok) {
+        char error[512] = {0};
+        gl.GetShaderInfoLog(shader, sizeof(error), NULL, error);
+        GLint length = 0;
+        gl.GetShaderiv(shader, 0x8b88, &length);
+        if (length > 0 && length <= 16385) {
+            char *source = calloc((size_t)length+1,1);
+            if (source) {
+                gl.GetShaderSource(shader,length,NULL,source);
+                char *fixed = t290_ca_coord_source(source,error);
+                if (fixed) {
+                    const char *parts[] = {fixed};
+                    gl.ShaderSource(shader,1,parts,NULL);
+                    gl.CompileShader(shader);
+                    gl.GetShaderiv(shader,0x8b81,&ok);
+                    plog("t290eagl: inverse-mask coord_arg repair shader %u compile %s",shader,ok?"PASS":"FAILED");
+                    free(fixed);
+                }
+                if (!ok) {
+                    static unsigned dumped;
+                    if (dumped++ < 4)
+                        for (size_t i=0,n=strlen(source);i<n;i+=160)
+                            plog("FAILED shader %u offset %zu: %.160s",shader,i,source+i);
+                }
+                free(source);
+            }
+        }
+    }
     static unsigned failures;
     if (!ok && failures++ < 24) {
         char log[192] = {0};
@@ -705,6 +736,25 @@ static void t290_link_program(GLuint program)
     gl.LinkProgram(program);
     GLint ok = 0;
     gl.GetProgramiv(program, 0x8b82, &ok);
+    if (ok) {
+        GLuint shaders[8]={0}; GLsizei count=0;
+        gl.GetAttachedShaders(program,8,&count,shaders);
+        for (GLsizei i=0;i<count;i++) {
+            char prefix[80]={0};
+            gl.GetShaderSource(shaders[i],sizeof(prefix),NULL,prefix);
+            if (!strstr(prefix,"/* T290 missing coord_arg */")) continue;
+            GLint old=0; gl.GetIntegerv(0x8b8d,&old);
+            gl.UseProgram(program);
+            GLint location=gl.GetUniformLocation(program,"coord_arg");
+            /* Normalized full-image bounds until CA supplies a narrower
+             * rectangle through its usual uniform location. */
+            const GLfloat bounds[4]={0,0,1,1};
+            if (location>=0) gl.Uniform4fv(location,1,bounds);
+            gl.UseProgram((GLuint)old);
+            plog("t290eagl: inverse-mask program %u initialized normalized bounds",program);
+            break;
+        }
+    }
     static unsigned failures;
     if (!ok && failures++ < 24) {
         char log[192] = {0};
@@ -1186,7 +1236,8 @@ __attribute__((constructor)) static void bridge_init(void)
 #define LOAD(f) (gl.f = (__typeof__(gl.f))mesa_proc("gl" #f))
     if (!LOAD(GetError) || !LOAD(GetIntegerv) || !LOAD(Finish) || !LOAD(Flush) || !LOAD(IsShader) ||
         !LOAD(DeleteShader) || !LOAD(DeleteProgram) || !LOAD(GetShaderiv) || !LOAD(GetProgramiv) ||
-        !LOAD(GetShaderInfoLog) || !LOAD(GetProgramInfoLog) || !LOAD(GetString) ||
+        !LOAD(GetShaderInfoLog) || !LOAD(GetShaderSource) || !LOAD(GetAttachedShaders) ||
+        !LOAD(GetProgramInfoLog) || !LOAD(GetString) ||
         !LOAD(BindFramebuffer) || !LOAD(FramebufferTexture2D) || !LOAD(FramebufferRenderbuffer) ||
         !LOAD(DeleteFramebuffers) || !LOAD(BindTexture) || !LOAD(DeleteTextures) ||
         !LOAD(DeleteRenderbuffers) || !LOAD(ActiveTexture) || !LOAD(Enable) || !LOAD(Disable) ||

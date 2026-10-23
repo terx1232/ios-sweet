@@ -452,6 +452,75 @@ static int test_luminance_alpha(id ctx, struct Macro *m, GLuint targetFbo, unsig
 
 /* Match CA's lowp vertex color, matrix upload and an offscreen texture pass.
  * The original tests used a constant fragment color and missed these paths. */
+/* Independently written inverse-mask fixture: matches the failing operation,
+ * not an Apple shader dump. Test the production compile/link hooks. */
+static int test_ca_inverse_mask(struct Macro *m, GLuint targetFbo)
+{
+    const char *sources[]={
+        "attribute vec2 position; varying highp vec2 texcoord1_0;"
+        "void main(){gl_Position=vec4(position,0.,1.);texcoord1_0=position*.5+.5;}",
+        "precision mediump float;varying highp vec2 texcoord1_0;uniform sampler2D image;"
+        "void main(){vec4 color=vec4(1.);vec4 s0=vec4(.5,.25,.125,1.);"
+        "vec4 s1=texture2D(image,clamp(texcoord1_0, coord_arg.xy, coord_arg.zw));"
+        "gl_FragColor=color * s0 * (1.0 - s1.a);}"};
+    GLuint program=CALL(597,GLuint,(void *)),shaders[2]={0};
+    for(unsigned i=0;i<2;i++) {
+        shaders[i]=CALL(594,GLuint,(void *,GLenum),i?0x8b30:0x8b31);
+        CALL(595,void,(void *,GLuint,GLsizei,const char *const *,const GLint *),shaders[i],1,&sources[i],NULL);
+        CALL(596,void,(void *,GLuint),shaders[i]);
+        GLint ok=0;CALL(622,void,(void *,GLuint,GLenum,GLint *),shaders[i],0x8b81,&ok);
+        if(!ok)return 90;
+        CALL(598,void,(void *,GLuint,GLuint),program,shaders[i]);
+    }
+    CALL(630,void,(void *,GLuint,GLuint,const char *),program,0,"position");
+    GLint previous=0;CALL(104,void,(void *,GLenum,GLint *),0x8b8d,&previous);
+    CALL(599,void,(void *,GLuint),program);
+    GLint restored=0;CALL(104,void,(void *,GLenum,GLint *),0x8b8d,&restored);
+    GLint ok=0;CALL(622,void,(void *,GLuint,GLenum,GLint *),program,0x8b82,&ok);
+    if(!ok||restored!=previous)return 91;
+    CALL(600,void,(void *,GLuint),program);
+    GLint location=CALL(625,GLint,(void *,GLuint,const char *),program,"coord_arg");
+    if(location<0)return 92;
+    GLuint texture=0,vbo=0;
+    CALL(98,void,(void *,GLsizei,GLuint *),1,&texture);
+    CALL(342,void,(void *,GLenum),0x84c0);
+    CALL(5,void,(void *,GLenum,GLuint),0x0de1,texture);
+    const uint8_t mask[]={0,0,0,0,0,0,0,255};
+    CALL(301,void,(void *,GLenum,GLint,GLint,GLsizei,GLsizei,GLint,GLenum,GLenum,const void *),
+        0x0de1,0,0x1908,2,1,0,0x1908,0x1401,mask);
+    CALL(304,void,(void *,GLenum,GLenum,GLint),0x0de1,0x2800,0x2600);
+    CALL(304,void,(void *,GLenum,GLenum,GLint),0x0de1,0x2801,0x2600);
+    CALL(63,void,(void *,GLenum),0x0be2);CALL(63,void,(void *,GLenum),0x0c11);
+    CALL(672,void,(void *,GLenum,GLuint),0x8d40,targetFbo);
+    CALL(335,void,(void *,GLint,GLint,GLsizei,GLsizei),0,0,64,64);
+    const GLfloat vertices[]={-1,-1,3,-1,-1,3};
+    CALL(644,void,(void *,GLsizei,GLuint *),1,&vbo);
+    CALL(642,void,(void *,GLenum,GLuint),0x8892,vbo);
+    CALL(646,void,(void *,GLenum,GLsizeiptr,const void *,GLenum),0x8892,sizeof(vertices),vertices,0x88e4);
+    CALL(511,void,(void *,GLuint,GLint,GLenum,GLboolean,GLsizei,const void *),0,2,0x1406,0,0,NULL);
+    CALL(512,void,(void *,GLuint),0);
+    for(unsigned round=0;round<2;round++) {
+        if(round) {const GLfloat bounds[]={0,0,0,1};CALL(613,void,(void *,GLint,GLsizei,const GLfloat *),location,1,bounds);}
+        CALL(65,void,(void *,GLenum,GLint,GLsizei),4,0,3);CALL(89,void,(void *));
+        for(unsigned side=0;side<2;side++) {
+            uint8_t pixel[4]={0};CALL(237,void,(void *,GLint,GLint,GLsizei,GLsizei,GLenum,GLenum,void *),
+                side?48:16,16,1,1,0x1908,0x1401,pixel);
+            const uint8_t wanted[]={128,64,32,255};
+            for(unsigned c=0;c<4;c++) if(!getenv("SWEET_FAKE") &&
+                abs((int)pixel[c]-(round||!side?wanted[c]:0))>2)return 93;
+        }
+    }
+    if(CALL(102,GLenum,(void *)))return 94;
+    CALL(600,void,(void *,GLuint),0);
+    CALL(643,void,(void *,GLsizei,const GLuint *),1,&vbo);
+    CALL(59,void,(void *,GLsizei,const GLuint *),1,&texture);
+    CALL(591,void,(void *,GLuint),program);
+    for(unsigned i=0;i<2;i++)CALL(591,void,(void *,GLuint),shaders[i]);
+    printf("PASS inverse-mask shader repair: caller clamp override, link state restored%s\n",
+        getenv("SWEET_FAKE")?" (fake GPU; pixels not verified)":" and both texture halves");
+    return 0;
+}
+
 static int test_ca_color(struct Macro *m, GLuint targetFbo)
 {
     const char *sources[] = {
@@ -743,6 +812,8 @@ static int test_main(void)
             if (layouts) return layouts;
             int la = test_luminance_alpha(ctx, m, fbo, api);
             if (la) return la;
+            int inverse = test_ca_inverse_mask(m,fbo);
+            if(inverse)return inverse;
             int color = test_ca_color(m, fbo);
             if (color) return color;
             CALL(643, void, (void *, GLsizei, const GLuint *), 1, &vbo);
