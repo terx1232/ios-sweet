@@ -1,13 +1,12 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
-**SM-T290 active handoff:** read t290/NOTES.md first. User requested system
-journal review before more Bluetooth changes.0141 logs refreshed: driverkitd
-killed by per-process memory limit (Jetsam ns1/code7),320 SPU assertion log
-messages, no observed kernel panic. GPU guards pass;USB/motion continue.
-No Safari/Settings/Photos launch/crash captured. System clock still1969.
-BT: WCNSS partition found,item13 absent; secondary266 still needs inspection.
-Offline firmware prepared/tested, not authenticated/loaded. Tablet in iPadOS;
-no new recovery/SD request or device changes. No Bluetooth/60FPS/app-fix claim.
+**SM-T290 active handoff:** read t290/NOTES.md first. User requested fixes
+for0141 system errors.0142 prepared: Embedded HID transport (no fakeSPU),
+iOS memory-limit API compatibility+bounded driverkitd allowance, calibrated
+read-only PM8953 calendar. Host/ARM64/link/pack/QEMU60s PASS. Android connected,
+0141 backup verified,0142 pushed and read-only flash preflight PASS.
+**0142 NOT installed; explicit recovery-write approval pending.** Hardware
+fixes unproven. No BT/60FPS/general app-fix claim. Bluetooth deferred.
 
 ## Agent handoff / active work (2026-10-15, latest)
 

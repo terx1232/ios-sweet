@@ -4,6 +4,53 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff:0142 system fixes prepared, approval pending
+
+- User requested fixing journal issues, Bluetooth deferred. Patch0142:
+  T290 HID transport Embedded instead of incorrect AppleSPU; preserves sensor
+  usage/product and0139 orientation path. No log suppression. Need hardware
+  verification that AOP assertion spam ceases and rotation remains working.
+- CONFIG_JETSAM disabled previously excluded two iOS legacy memory-limit
+  commands, causing launchd50MB watermark EINVAL. Enable existing setter for
+  T290 with normal auth/fatal/nonfatal handling; keep coalition APIs gated.
+  Positive driverkitd limits below64MB receive bounded64MB floor only;
+  all other tasks/default/larger limits unchanged. This is provisional until
+  measured hardware survival/footprint. Fatal path now logs actual footprint
+  and limit. No global disabling of protection/pressure handling.
+- IOPlatformExpert calendar getter previously returned0. New RTC C module
+  uses existing serialized observer SPMI reads, sid0/peripheral0x60 only,
+  control0x6046 + counter0x6048..4b/carry check. No hardware writes/alarm changes.
+  Gate t290rtc=1; calibrated t290rtc_offset=1769073406 in LOCAL bootargs.
+  Android read stable raw23695729 vs Unix1792769135; Android stores wall
+  correction separately. Reject invalid/overflow/2020..2099 range. Set-time
+  adjusts only in-memory offset this boot. Recalibrate after counter reset or
+  Android wall correction change. QEMU hardware reads disabled.
+- Portable policy/RTC ASan/UBSan non-PIE tests PASS;5 ARM64 sources compile
+  PASS; reverse-patch check PASS, full link0; known shim/DTB and payload
+  roundtrip PASS; QEMU60s no_panic_observed/unknown_glyphs0. Check qa0142/fb.txt
+  for PID1 liveness. Hardware SPU/date/driverkitd fixes NOT verified yet.
+- dl/k-t290-0142: recovery64MiB SHA256
+  9a650cab07eb7c777fe874104a0fe71be42b908210ce53c05532cd08a4b5e1fb;
+  kernel a558c6866472eaa4b46c467a250af2b1aff64990061f5df66551c4f2a348fc08.
+  Bridge0b6dab70...dd9b51/testb874b3fe...1979a remain unchanged0139.
+- Android connected. Full0141 backup in ios-t290/backup-20261023-system0142/
+  recovery-before-0142.img, SHA2ab7d974...e0e91 matches current partition.
+  Image pushed/data/local/tmp/recovery-0142.img; flash-0142.ps1 read-only
+  preflight PASS. **NOT installed/approved0142.** Ask explicit approval per
+  AGENTS before -WriteApproved. No new SD userland request needed/staged.
+- After approved guarded flash/readback, user manual recovery menu boot;
+  dl/t290-system/{wait-collect,collect-live,collect-more}0142.py for nativeUSB.
+  Check SWEET RTC epoch, MEM requested/applied/fatal logs, driverkitd and
+  AppleSPU assertion count, touch/rotation. Then app tests. No all-fixed claim.
+- Helpers dl/t290-system/{prepare,build,relink,pack,qemu}0142*; baseline0141
+  copies there. DO NOT rerun prepare helper (would duplicate edits).
+  WSL work system0142{,-objects},qa0142. Link keeps0141 BT/SD and0139 accel,
+  new HID/IOPlatformExpert/memorystatus/SPMI/RTC objects. Source t290/system.
+- Read-only original APFS remounted ROOT-owned via apfs-fuse -o ro at
+  /home/kirill/sysos (use wsl -u root to access). No file modifications.
+
+### Prior system journal review
+
 ## Latest steering: review system journal before more Bluetooth changes
 
 - User asked to pause BT changes and inspect system logs. Read-only fresh

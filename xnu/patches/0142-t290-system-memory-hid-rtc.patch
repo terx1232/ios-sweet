@@ -1,0 +1,239 @@
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -656,3 +656,4 @@
+ bsd/skywalk/packet/pbufpool.c			optional skywalk
+ bsd/skywalk/packet/pbufpool_kern.c		optional skywalk
+ bsd/dev/cpu_copy_in_cksum_gen.c			optional skywalk
++bsd/dev/sweet_t290_rtc.c standard
+--- a/bsd/dev/sweet_spmi.c
++++ b/bsd/dev/sweet_spmi.c
+@@ -139,7 +139,7 @@
+ 		return true;
+ 	}
+ #if defined(SWEET_T290)
+-	if (sid == 0 && peripheral == 0x08) {	/* PM8953 PON: power + volume-down */
++	if (sid == 0 && (peripheral == 0x08 || peripheral == 0x60)) {	/* PM8953 PON: power + volume-down */
+ 		return true;
+ 	}
+ 	if (sid == 1 && peripheral == 0x20) {	/* PM8953 S5: APC (CPU) rail, read only */
+--- /dev/null
++++ b/bsd/dev/sweet_t290_rtc.c
+@@ -0,0 +1,68 @@
++/* PM8953 RTC, SM-T290 only. Read hardware; never change Android's RTC/alarm.
++ * Android keeps wall-clock correction separately from the raw PMIC counter.
++ * t290rtc_offset is calibrated against Android once, not the build timestamp.
++ */
++#if defined(ARM64_BOARD_CONFIG_SWEET) && defined(SWEET_T290)
++#include <sys/param.h>
++#include <sys/systm.h>
++#include <pexpert/pexpert.h>
++#include "sweet_spmi.h"
++#include "sweet_t290_system_policy.h"
++
++long sweet_t290_rtc_get(void);
++void sweet_t290_rtc_set(long);
++
++static int rtc_enabled;
++static int rtc_checked;
++static int64_t rtc_offset;
++static int rtc_logged;
++
++static int rtc_read(uint32_t *seconds)
++{
++    if (sweet_spmi_init()) return -1;
++    uint8_t control;
++    if (sweet_spmi_read(0, 0x6046, &control) || !(control & 0x80)) return -1;
++    for (unsigned retry = 0; retry < 3; ++retry) {
++        uint8_t bytes[4], low;
++        for (unsigned i = 0; i < 4; ++i)
++            if (sweet_spmi_read(0, 0x6048 + i, &bytes[i])) return -1;
++        if (sweet_spmi_read(0, 0x6048, &low)) return -1;
++        if (low < bytes[0]) continue; /* carry during the multi-byte read */
++        *seconds = (uint32_t)bytes[0] | (uint32_t)bytes[1] << 8 |
++            (uint32_t)bytes[2] << 16 | (uint32_t)bytes[3] << 24;
++        return 0;
++    }
++    return -1;
++}
++
++long sweet_t290_rtc_get(void)
++{
++    if (!rtc_checked) {
++        PE_parse_boot_argn("t290rtc", &rtc_enabled, sizeof(rtc_enabled));
++        PE_parse_boot_argn("t290rtc_offset", &rtc_offset, sizeof(rtc_offset));
++        rtc_checked = 1;
++    }
++    if (!rtc_enabled) return 0;
++    uint32_t raw;
++    long epoch;
++    if (rtc_read(&raw) || t290_rtc_epoch(raw, rtc_offset, &epoch)) {
++        if (!rtc_logged) printf("SWEET RTC: no valid calibrated PM8953 time\n");
++        rtc_logged = 1;
++        return 0;
++    }
++    if (!rtc_logged) printf("SWEET RTC: PM8953 raw=%u offset=%lld epoch=%ld, hardware read-only\n",
++        raw, rtc_offset, epoch);
++    rtc_logged = 1;
++    return epoch;
++}
++
++void sweet_t290_rtc_set(long epoch)
++{
++    uint32_t raw;
++    long checked;
++    if (!rtc_enabled || rtc_read(&raw)) return;
++    int64_t offset = (int64_t)epoch - raw;
++    if (t290_rtc_epoch(raw, offset, &checked)) return;
++    rtc_offset = offset; /* correction for this boot; no PMIC writes */
++}
++#endif
+--- /dev/null
++++ b/bsd/dev/sweet_t290_system_policy.h
+@@ -0,0 +1,21 @@
++#ifndef T290_SYSTEM_POLICY_H
++#define T290_SYSTEM_POLICY_H
++#include <stdint.h>
++
++/* A bounded compatibility floor for the small Apple driverkitd launch limit.
++ * Preserve defaults/unlimited requests, larger limits, and all other tasks. */
++static inline int t290_driverkit_limit(int driverkit, int requested)
++{
++    return driverkit && requested > 0 && requested < 64 ? 64 : requested;
++}
++
++static inline int t290_rtc_epoch(uint32_t raw, int64_t offset, long *epoch)
++{
++    /* Reject corrupt calibration before adding, including signed overflow. */
++    if (offset < -4294967295LL || offset > 4294967295LL) return -1;
++    int64_t result = (int64_t)raw + offset;
++    if (result < 1577836800LL || result >= 4102444800LL) return -1;
++    *epoch = (long)result; /* ARM64: Unix seconds, 2020..2099. */
++    return 0;
++}
++#endif
+--- a/bsd/kern/kern_memorystatus.c
++++ b/bsd/kern/kern_memorystatus.c
+@@ -175,9 +175,22 @@
+  * soon be in effect down in the ledgers.
+  */
+ 
++#if defined(SWEET_T290)
++#include "../dev/sweet_t290_system_policy.h"
++static int t290_memlimit(proc_t p, int requested)
++{
++    int applied = t290_driverkit_limit(!strcmp(p->p_comm, "driverkitd"), requested);
++    if (applied != requested)
++        printf("SWEET MEM: %s[%d] requested=%dMB applied=%dMB\n", p->p_comm, proc_getpid(p), requested, applied);
++    return applied;
++}
++#else
++#define t290_memlimit(p, requested) (requested)
++#endif
++
+ #define SET_ACTIVE_LIMITS_LOCKED(p, limit, is_fatal)                    \
+ MACRO_BEGIN                                                             \
+-(p)->p_memstat_memlimit_active = (limit);                               \
++(p)->p_memstat_memlimit_active = t290_memlimit((p), (limit));                               \
+    if (is_fatal) {                                                      \
+ 	   (p)->p_memstat_state |= P_MEMSTAT_MEMLIMIT_ACTIVE_FATAL;     \
+    } else {                                                             \
+@@ -187,7 +200,7 @@
+ 
+ #define SET_INACTIVE_LIMITS_LOCKED(p, limit, is_fatal)                  \
+ MACRO_BEGIN                                                             \
+-(p)->p_memstat_memlimit_inactive = (limit);                             \
++(p)->p_memstat_memlimit_inactive = t290_memlimit((p), (limit));                             \
+    if (is_fatal) {                                                      \
+ 	   (p)->p_memstat_state |= P_MEMSTAT_MEMLIMIT_INACTIVE_FATAL;   \
+    } else {                                                             \
+@@ -4245,6 +4258,9 @@
+ #endif /* VM_PRESSURE_EVENTS */
+ 
+ 	if (memlimit_is_fatal) {
++#if defined(SWEET_T290)
++		printf("SWEET MEM: fatal %s[%d] footprint=%llu limit=%llu active=%d\n", p->p_comm, proc_getpid(p), get_task_phys_footprint(proc_task(p)), get_task_phys_footprint_limit(proc_task(p)), memlimit_is_active);
++#endif
+ 		/*
+ 		 * If this process has no high watermark or has a fatal task limit, then we have been invoked because the task
+ 		 * has violated either the system-wide per-task memory limit OR its own task limit.
+@@ -7574,7 +7590,7 @@
+  *      - so mapping is (active/fatal, inactive/fatal)
+  */
+ 
+-#if CONFIG_JETSAM
++#if CONFIG_JETSAM || defined(SWEET_T290)
+ static int
+ memorystatus_cmd_set_jetsam_memory_limit(pid_t pid, int32_t high_water_mark, __unused int32_t *retval, boolean_t is_fatal_limit)
+ {
+@@ -7595,6 +7611,8 @@
+ 	return error;
+ }
+ 
++#endif /* CONFIG_JETSAM || SWEET_T290 */
++#if CONFIG_JETSAM
+ static int
+ memorystatus_cmd_mark_process_coalition_swappable(pid_t pid, __unused int32_t *retval)
+ {
+@@ -8023,7 +8041,7 @@
+ 	case MEMORYSTATUS_CMD_GET_PRESSURE_STATUS:
+ 		error = memorystatus_cmd_get_pressure_status(ret);
+ 		break;
+-#if CONFIG_JETSAM
++#if CONFIG_JETSAM || defined(SWEET_T290)
+ 	case MEMORYSTATUS_CMD_SET_JETSAM_HIGH_WATER_MARK:
+ 		/*
+ 		 * This call does not distinguish between active and inactive limits.
+@@ -8040,6 +8058,8 @@
+ 		 */
+ 		error = memorystatus_cmd_set_jetsam_memory_limit(args->pid, (int32_t)args->flags, ret, TRUE);
+ 		break;
++#endif /* CONFIG_JETSAM || SWEET_T290 */
++#if CONFIG_JETSAM
+ 	case MEMORYSTATUS_CMD_MARK_PROCESS_COALITION_SWAPPABLE:
+ 		error = memorystatus_cmd_mark_process_coalition_swappable(args->pid, ret);
+ 		break;
+--- a/iokit/Kernel/IOPlatformExpert.cpp
++++ b/iokit/Kernel/IOPlatformExpert.cpp
+@@ -390,15 +390,27 @@
+ #endif
+ }
+ 
++#if defined(SWEET_T290)
++extern "C" long sweet_t290_rtc_get(void);
++extern "C" void sweet_t290_rtc_set(long);
++#endif
++
+ long
+ IOPlatformExpert::getGMTTimeOfDay(void)
+ {
++#if defined(SWEET_T290)
++	return sweet_t290_rtc_get();
++#else
+ 	return 0;
++#endif
+ }
+ 
+ void
+ IOPlatformExpert::setGMTTimeOfDay(long secs)
+ {
++#if defined(SWEET_T290)
++	sweet_t290_rtc_set(secs);
++#endif
+ }
+ 
+ 
+--- a/iokit/Kernel/arm/hid/SweetHID.cpp
++++ b/iokit/Kernel/arm/hid/SweetHID.cpp
+@@ -262,7 +262,12 @@
+ OSString *
+ IOHIDEventService::getTransport()
+ {
++	#if defined(SWEET_T290)
++	/* These services have no Apple SPU/AOP user client. */
++	return OSString::withCString("Embedded");
++#else
+ 	return OSString::withCString("SPU");
++#endif
+ }
+ 
+ OSString *
