@@ -1,0 +1,45 @@
+--- a/bsd/dev/sweet_t290_accel.c
++++ b/bsd/dev/sweet_t290_accel.c
+@@ -157,11 +157,13 @@
+ 	int32_t raw[3];
+ 	for (unsigned i = 0; i < 3; ++i)
+ 		raw[i] = (int16_t)((uint16_t)b[2*i] | (uint16_t)b[2*i+1] << 8);
+-	/* Android config axes (+Y,-X,+Z); CoreMotion gravity has opposite sign.
++	/* Actual labelled tablet poses (0138): old +X=portrait, +Y=camera-left.
++	 * Correct CoreMotion gravity: portrait -Y, camera-left -X, face-up -Z.
+ 	 * 12bit samples are left aligned: 16384 raw counts/g -> 16.16 g.
+-	 * Multiplication, not signed left shift (undefined for negative samples).
++	 * Multiplication avoids undefined signed left shifts.
+ 	 */
+-	xyz[0] = -raw[1] * 4; xyz[1] = raw[0] * 4; xyz[2] = -raw[2] * 4;
++	xyz[0] = -raw[0] * 4; xyz[1] = raw[1] * 4; xyz[2] = raw[2] * 4;
+ 	return 0;
+ }
++
+ #endif
+--- a/bsd/dev/sweet_sdhc.c
++++ b/bsd/dev/sweet_sdhc.c
+@@ -983,6 +983,10 @@
+ 	    sd.writable ? "read-write" : "read-only", sd.nsectors / 2048, sd.first, sd.mhz,
+ 	    ns / 1000, e ? " (FAILED)" : "");
+ 
++	/* SD root must start the same hang sampler as UFS/virtio roots. */
++	extern void sweet_sample_start(void);
++	sweet_sample_start();
++
+ 	extern void sweet_t290_touch_init(void);        /* bsd/dev/sweet_t290_touch.c */
+ 	sweet_t290_touch_init();
+ 	extern void sweet_keys_init(void);              /* bsd/dev/sweet_keys.c */
+--- a/iokit/Kernel/arm/hid/SweetHID.cpp
++++ b/iokit/Kernel/arm/hid/SweetHID.cpp
+@@ -610,8 +610,8 @@
+ 	virtual bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
+ 	virtual void stop(IOService *provider) APPLE_KEXT_OVERRIDE;
+ protected:
+-	virtual UInt32 getPrimaryUsagePage() APPLE_KEXT_OVERRIDE { return kHIDPage_Sensor; }
+-	virtual UInt32 getPrimaryUsage() APPLE_KEXT_OVERRIDE { return kHIDUsage_Snsr_Motion_Accelerometer3D; }
++	virtual UInt32 getPrimaryUsagePage() APPLE_KEXT_OVERRIDE { return 0xff00; /* actual BKOrientationManager matcher */ }
++	virtual UInt32 getPrimaryUsage() APPLE_KEXT_OVERRIDE { return 3; /* Apple built-in accelerometer usage */ }
+ 	virtual UInt32 getProductID() APPLE_KEXT_OVERRIDE { return 3; }
+ 	virtual UInt32 getReportInterval() APPLE_KEXT_OVERRIDE { return 40000; }
+ 	virtual OSString *getProduct() APPLE_KEXT_OVERRIDE { return OSString::withCString("SM-T290 KXTJ3"); }

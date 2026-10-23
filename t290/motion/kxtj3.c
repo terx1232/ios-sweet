@@ -156,10 +156,11 @@ int sweet_t290_accel_read(int32_t xyz[3])
 	int32_t raw[3];
 	for (unsigned i = 0; i < 3; ++i)
 		raw[i] = (int16_t)((uint16_t)b[2*i] | (uint16_t)b[2*i+1] << 8);
-	/* Android config axes (+Y,-X,+Z); CoreMotion gravity has opposite sign.
+	/* Actual labelled tablet poses (0138): old +X=portrait, +Y=camera-left.
+	 * Correct CoreMotion gravity: portrait -Y, camera-left -X, face-up -Z.
 	 * 12bit samples are left aligned: 16384 raw counts/g -> 16.16 g.
-	 * Multiplication, not signed left shift (undefined for negative samples).
+	 * Multiplication avoids undefined signed left shifts.
 	 */
-	xyz[0] = -raw[1] * 4; xyz[1] = raw[0] * 4; xyz[2] = -raw[2] * 4;
+	xyz[0] = -raw[0] * 4; xyz[1] = raw[1] * 4; xyz[2] = raw[2] * 4;
 	return 0;
 }

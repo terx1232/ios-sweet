@@ -1,5 +1,38 @@
 # SM-T290 accelerometer bring-up
 
+## 0139: measured axes and normal orientation delivery
+
+0138 hardware test confirmed WHO_AM_I=0x35, live tilt readings and one HID
+subscriber after backboardd starts. Separate labelled recordings showed
+that 0138 +X means portrait and +Y means camera-left. Patch 0139 maps the
+raw chip axes to `(-X,+Y,+Z)` in CoreMotion gravity coordinates and publishes
+page 0xff00/usage 3, as matched by this iPadOS version's BKOrientationManager.
+This supersedes the initial board-config mapping described below.
+
+The EAGL injection library now also contains `eagl/orientation.h`. It checks
+the exact runtime method and ivar types against the inspected 16.7 backboardd
+ABI and only consumes events whose registry sender has product
+`SM-T290 KXTJ3`. A filtered, stable measured pose goes through
+`BKOrientationManager updateDeviceOrientation:changeSource:` and its normal
+lock/notification logic. It does not force interface rotation through the
+automation API. Delivery runs on a separate worker with at most one pending
+job, because that system entry synchronously dispatches to its own queue.
+
+The filter holds the last orientation when flat or near a diagonal, rejects
+invalid/vigorous samples, smooths readings and requires 350ms of stable pose.
+`test-orientation.c` passed ASan/UBSan using recorded poses, all four screen
+directions, flat/diagonal positions, jitter, invalid and stale samples.
+The exact Objective-C hook has compiled and passed ABI inspection but still
+requires a real boot test. **Auto rotation is not yet hardware verified.**
+
+0139 also starts the existing process-stack sampler on SD-root boot (it was
+previously called only by UFS/virtio roots). SpringBoard is included in the
+sample targets. The reported 0138 UI/power hang remains unexplained: native
+USB and sensor sampling continued, and no panic was seen in captured text.
+The new sampler is diagnostic; it is not a demonstrated hang fix.
+
+## Initial 0138 input path (historical)
+
 The requested end result is automatic iPadOS screen rotation. Patch 0138 is
 the first hardware test of the input path; automatic rotation is **not yet
 verified or complete**. No orientation values or gyroscope readings are

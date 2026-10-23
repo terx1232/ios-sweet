@@ -1150,6 +1150,8 @@ static void replace(Class c, const char *name, IMP fn, BOOL meta)
     else plog("t290eagl: no method %s", name);
 }
 
+#include "orientation.h"
+
 __attribute__((constructor)) static void bridge_init(void)
 {
     if (!strcmp(getprogname(), "backboardd")) {
@@ -1166,6 +1168,7 @@ __attribute__((constructor)) static void bridge_init(void)
     mach_port_t service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("SweetGPU"));
     if (service) { IOServiceOpen(service, mach_task_self(), 0, &log_conn); IOObjectRelease(service); }
     log_fd = open("/private/var/tmp/t290eagl.log", O_WRONLY | O_CREAT | O_APPEND, 0666);
+    t290_motion_install();
     pthread_key_create(&current_key, release_current);
     mesa_lib = dlopen(getenv("T290_MESA_LIB") ?: "/usr/lib/libOSMesa.8.dylib", RTLD_NOW | RTLD_LOCAL);
     if (!mesa_lib) { plog("t290eagl: dlopen failed: %s", dlerror()); return; }

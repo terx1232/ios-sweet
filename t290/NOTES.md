@@ -4,7 +4,46 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff 2026-10-23: accelerometer requested;0138 INSTALLED
+## Active handoff 2026-10-23:0139 PREPARED, Android connected, approval pending
+
+- User requested fix and said returning to Android. ADB/root ready. New0139
+  image built/pushed/preflighted, current0138 recovery fullbackup verified at
+  ios-t290/backup-20261023-motion0139/recovery-before-0139.img. NO0139 partition
+  write yet. Explicit approval for0139 is still needed before -WriteApproved.
+- Kernel patch0139: labelled-pose axis map raw(-X,+Y,+Z), HID page0xff00/usage3
+  (actual BKOrientationManager matcher), start existing process sampler on SD
+  root (previously never called there). Boot sample targets now include
+  SpringBoard/backboardd/Safari/Preferences/Photos. No clock changes.
+- Added orientation.h/filter to EAGL bridge: exact runtime method/ivar ABI
+  checks, only product-verified KXTJ3 registry sender, measured stable gravity
+  -> normal BKOrientationManager updateDeviceOrientation:changeSource:.
+  Separate serial worker, one pending job maximum, preserves normal rotation
+  locks; never call its dispatch_sync entry on input callback/manager locks.
+  Hook runtime and actual rotation NOT HARDWARE VERIFIED. Hang cause UNKNOWN.
+- Actual filter ASan/UBSan PASS recorded poses, four rotations, flat/diagonal
+  hold, debounce/jitter/invalid/stale samples. Three kernel ARM64 objects
+  compile PASS, full relink exit0; patch reverse-check PASS. Bridge237 GLI
+  signatures + ARM64/signatures/entitlements PASS. Final QEMU60s PASS, PID1
+  alive6 messages, no_panic_observed/unknown_glyphs0, sensor disabled in QEMU.
+- Artifacts dl/k-t290-0139: recovery1ef03e39d3861619fffc9a02a03ba8ea0446382b8f9a3c1323c5b5d77b93f259;
+  kernel0bd09824be91b59c613ce9eda92cc242f90ec5c8d91275ba84d37f30f3e24858;
+  bridge0b6dab70d7b2bf953efe5337d9a3ee98c7a4a90c653288c85e2cc9d4badd9b51;
+  test unchanged b874b3fe...1979a. Known shim/DTB unchanged, payload roundtrip
+  PASS. QEMU /home/kirill/t290-local-kernel/qa0139/with-root.
+- New SD request8ops STAGED, old0137 GETs recovered first. GET old current
+  library/test/trace/capture/log into dl/k-t290-0139/before, PUT new bridge/test
+  plus marker0. Full84601858B readback PASS SHA
+  76df46da5d162e2b25f8521e18d219a3382621070007cd0df421208d4fa3865b.
+  Do not stage another request before recovering these GETs after next boot.
+- Next after approval: guarded backup-20261023-motion0139/flash-0139.ps1
+  -WriteApproved, full partition hash readback; manual iPadOS boot, nativeUSB
+  collect for0139, verify guard, motion hook installation and sensor sender,
+  delivered orientation transitions, actual rotation/lock/touch. Inspect SMP
+  stacks if UI freezes. Do NOT claim60FPS or app/hang fixes yet.
+- Local build helpers dl/t290-motion/*0139*; objects motion0139-objects,
+  full link /home/kirill/t290-local-kernel/motion0139. Bridge build-motion0139.
+
+### 0138 hardware observations and earlier investigation
 
 - 0138 ACTUAL SENSOR PASS, AUTO ROTATION STILL NOT WORKING. Native USB
   boot ios-t290/usb-captures/0138/boot-20261023-184523-0138: probe0/id0x35,

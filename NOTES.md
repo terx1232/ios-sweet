@@ -1,20 +1,13 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
-0138 hardware update: KXTJ3 probe0/id0x35, live tilt samples, one subscriber;
-auto rotation still absent. User reports UI/power hang; USB L/F and sensor
-remain alive, no observed panic, cause unknown. Separate vertical/horizontal
-pose records saved; details and next diagnosis in t290/NOTES.md.
-
-**Active SM-T290 work (2026-10-23):** see `t290/NOTES.md` first.
-User requested accelerometer-driven automatic rotation. Live Android config:
-KXTJ3 bus4/0x0e, GPIO14/15, axes+Y,-X,+Z, SSC-owned.0138 test image prepared:
-opt-in bounded I2C driver and standard HID accelerometer service. ARM64/full
-link PASS; final60s QEMU PID1 alive without observed panic. Sensor/userland matching
-and AUTO ROTATION NOT VERIFIED OR COMPLETE. Recovery0138 INSTALLED after explicit user approval, full64MiB SHA readback
-PASS (df03715d...cba979). Previous0137 backed up; its SD update8/8 complete.
-Next manual iPadOS boot and native USB sensor/subscriber inspection.
-Faster UI/app stability remains pending hardware logs; no60FPS or app fix
-claimed. Clock work cancelled. Exact hashes/next steps in t290/NOTES.md.
+**SM-T290 active handoff:** read t290/NOTES.md first.0139 prepared:
+measured accelerometer axes, Apple HID matching, normal orientation-manager
+bridge and SD-root process sampler for unresolved UI hangs. Source and build
+checks PASS;60s QEMU PID1 alive/no observed panic. Real rotation and hang fix
+NOT verified. Android connected,0138 backup verified,0139 image pushed and
+read-only preflight PASS. New bridge/test SD request8ops staged/full readback
+PASS. Recovery0139 NOT written; explicit approval required next. No clocks
+changed, no60FPS/app-fix claim. See t290/motion/README.md and active notes.
 
 ## Agent handoff / active work (2026-10-15, latest)
 

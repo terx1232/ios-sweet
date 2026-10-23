@@ -10,8 +10,8 @@ public:
 	virtual bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
 	virtual void stop(IOService *provider) APPLE_KEXT_OVERRIDE;
 protected:
-	virtual UInt32 getPrimaryUsagePage() APPLE_KEXT_OVERRIDE { return kHIDPage_Sensor; }
-	virtual UInt32 getPrimaryUsage() APPLE_KEXT_OVERRIDE { return kHIDUsage_Snsr_Motion_Accelerometer3D; }
+	virtual UInt32 getPrimaryUsagePage() APPLE_KEXT_OVERRIDE { return 0xff00; /* actual BKOrientationManager matcher */ }
+	virtual UInt32 getPrimaryUsage() APPLE_KEXT_OVERRIDE { return 3; /* Apple built-in accelerometer usage */ }
 	virtual UInt32 getProductID() APPLE_KEXT_OVERRIDE { return 3; }
 	virtual UInt32 getReportInterval() APPLE_KEXT_OVERRIDE { return 40000; }
 	virtual OSString *getProduct() APPLE_KEXT_OVERRIDE { return OSString::withCString("SM-T290 KXTJ3"); }
