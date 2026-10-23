@@ -25,9 +25,11 @@
 - User returnedAndroid+USB. Full0142 backup verified locally/currentpartition,
   SHA9a650cab...b5e1fb;0143 pushed/hash verified. Read-only preflight PASS.
   Guard script in
-  ios-t290/backup-20261023-bluetooth0143. **0143 NOT installed or approved.**
-  Next explicit0143 approval per AGENTS, guarded write/readback then manual
-  boot and nativeUSB capture with dl/t290-bluetooth/*collect*0143.py. No new SD update needed for this diagnostic.
+  ios-t290/backup-20261023-bluetooth0143. **0143 INSTALLED after explicit user approval.**
+  flash-0143.ps1 -WriteApproved exit0; full64MiB partition readback PASS
+  e1796bf60e7ee75c9ff6fad21a48f57b0b1b447ff78c3ffd4fe8d51fb493222a.
+  Result JSON saved in backup directory. No reboot command sent.
+  Next manual boot and nativeUSB capture with dl/t290-bluetooth/*collect*0143.py. No new SD update needed for this diagnostic.
   Helpers dl/t290-bluetooth/*0143*, WSL bluetooth0143{,-objects},qa0143.
 
 ###0142 freeze evidence saved before returning to Bluetooth
