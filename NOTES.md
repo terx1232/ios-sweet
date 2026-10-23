@@ -1,26 +1,18 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
 **Active SM-T290 work (2026-10-23):** see `t290/NOTES.md` and `t290/GPU.md`.
-Patch0136 and matching EAGL bridge now implement IOSurfaceAddress with pinned
-client memory and an aligned GPU backing. Full kernel linked locally in WSL
-(GitHub Actions dispatch blocked HTTP422),90s QEMU no panic, not a UI test.
-64MiB image a21119db...222914 INSTALLED after explicit0136 user approval;
-full partition SHA readback PASS,0135 backed up. First0136 boot verified:
-8/8 SD operations, real ES2+ES3 client-memory GPU tests PASS, guard enabled.
-Icons restored; wallpaper/text/effects still broken. Capture143/143 records
-valid after fixing log-slice joining. New ca-passes1 library/test STAGED8ops
-on microSD, full readback SHA d8981a44...f2dbcb. Old backup GETs recovered.
-User requested manual iPadOS boot; Android at staging completion.
-Replacement programs for narrow missing CA functions20/89; actual16.7 UUID
-and vtable targets checked, no function_supported override. Host software
-ES2.0/ES3.0 shader pixels PASS,237 GLI signatures/signatures PASS. Hardware
-guard and actual UI NOT yet tested. No recovery update needed.
-User priority is content first, FPS later. See active t290/NOTES.md for exact
-hashes, build recipe, native USB capture and next hardware checks. Marker2
-and launcher test guard retained. Other CA effects and Metal not implemented.
-Live CPU config selects ~1.7088GHz, all4 cores; GPU400MHz. Stock tables have
-CPU2016MHz/GPU650MHz (GPU bin0); full DVFS not implemented, no clocks changed.
-Zero-time recount panic previously recurred on CPU2, unresolved.
+User now prioritizes faster UI and apps not closing; clock work cancelled.
+Installed recovery0136, ca-passes1 GPU guard passed on real ES2/ES3; missing
+UI effects and app crashes remain. New0137 kernel fixes explicit zero
+IOSurfaceAllocSize auto-allocation; bridge adds bounded shader failure logs
+and heavy texture capture will be disabled. Actual-layout ASan/UBSan PASS,
+ARM64/full local build PASS, corrected60s QEMU PID1 alive without observed
+panic (kernel boot only, NOT UI/GPU proof). Full64MiB0137 image prepared,
+SHA87100f2d...9ca576, pushed and verified; current0136 backed up and verified.
+New0137 bridge/test SD request staged with full readback PASS. Android ADB
+connected. Recovery0137 NOT written; explicit approval required next.
+No measured speedup or60FPS established. Settings/Photos SIGABRT exception
+reasons and Safari hang require next hardware logs; do not claim fixed.
 
 ## Agent handoff / active work (2026-10-15, latest)
 

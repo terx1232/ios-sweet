@@ -16,12 +16,13 @@
   dl/k-t290-0137/before, new bridge/test and marker0 PUTs). Full84582914B
   readback PASS SHA a5a04d1420ad74da75479657831c35cc50feb211b7e2cb750ebaf773f474e5d7.
   New test REQUIRES0137; currently installed recovery still0136.
-- QEMU initial test omitted md0 image and hit the expected IOFindBSDRoot
-  panic (md0 not configured), not a kernel regression. Recreated a static
-  signed PID1 with tools/mkinit.py, padded32768B, attached via --ramdisk;
-  second60s CortexA53/GICv2 run is ongoing in exec session59566. Results
-  /home/kirill/t290-local-kernel/qa0137/with-root. Before approval, check
-  result.json/fb.txt and record actual outcome. Helper dl/qemu0137.sh.
+- QEMU corrected60s CortexA53/GICv2 smoke PASS: result no_panic_observed,
+  unknown_glyphs0; fb.txt confirms signed static userspace PID1 running and
+  six still-alive messages. This checks kernel boot only, NOT tablet GPU/UI.
+  Initial missing-md0 harness panic was resolved by attaching signed ramdisk.
+  Results /home/kirill/t290-local-kernel/qa0137/with-root; helper dl/qemu0137.sh.
+- Latest user confirms Android; ADB get-state device. Prepared0137 approval
+  is the next action; do NOT write partition without explicit approval.
 
 - User explicitly postponed remaining UI effects/Metal and wants faster UI
   and apps to stop closing. Also explicitly dropped clock changes: DO NOT
