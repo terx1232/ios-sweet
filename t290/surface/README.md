@@ -1,3 +1,29 @@
+# Graphics stability (0145)
+
+Patch0145 shares a 512MiB reservation budget between owned GPU buffers and
+owned/pinned surfaces. Imports retain their surface reference without double
+counting. Selector10 reports used, peak, cap and rejected reservations; process
+samples print the same counters. The cap is provisional and needs hardware
+measurement: rejection is not a fix for leaks or application exceptions.
+
+GPU fence waits use a real deadline capped at five seconds, spin for about one
+millisecond, then yield the CPU. IOSurface descriptor mapping runs outside the
+global surface table lock. Failed GPU mappings unwind their entire reserved
+window. Prepared handles have capacity4096 and are removed when freed.
+
+Host checks compile the actual implementation with ASan/UBSan:
+
+```
+python3 t290/surface/test-budget.py /path/to/xnu/iokit/Kernel/arm/SweetSurface.cpp
+python3 t290/surface/test-wait.py /path/to/xnu/bsd/dev/sweet_t290_gpu.c
+```
+
+Budget tests cover overflow, exact capacity and160000 concurrent reservation/
+release pairs. Wait tests cover completed/delayed fences, zero timeout,
+UINT32_MAX timeout, sequence wrap and unavailable hardware. These checks and
+QEMU boot do not establish real GPU stability or FPS. Existing400MHz clock
+configuration and30Hz framebuffer setting are preserved;60FPS is not claimed.
+
 # Client memory surfaces (0136)
 
 Patch0136 handles `IOSurfaceAddress` creation: pin the original memory,

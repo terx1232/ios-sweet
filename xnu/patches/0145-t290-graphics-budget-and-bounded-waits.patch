@@ -1,0 +1,271 @@
+--- a/iokit/Kernel/arm/SweetSurface.cpp
++++ b/iokit/Kernel/arm/SweetSurface.cpp
+@@ -75,13 +75,48 @@
+ static uint64_t      sweet_surface_wired;       /* owned and pinned client bytes */
+ #define SWEET_SURFACE_WIRED_MAX         (1536ull << 20)
+ 
++#if defined(SWEET_T290)
++#define T290_GRAPHICS_CAP (512ull << 20)
++static volatile uint64_t graphics_used, graphics_peak, graphics_denied;
++extern "C" bool sweet_graphics_reserve(uint64_t bytes)
++{
++    uint64_t before;
++    do {
++        before = graphics_used;
++        if (!bytes || bytes > T290_GRAPHICS_CAP || before > T290_GRAPHICS_CAP - bytes) {
++            OSAddAtomic64(1, (volatile SInt64 *)&graphics_denied);
++            return false;
++        }
++    } while (!OSCompareAndSwap64(before,before+bytes,&graphics_used));
++    uint64_t peak;
++    do { peak = graphics_peak; }
++    while (peak < before+bytes && !OSCompareAndSwap64(peak,before+bytes,&graphics_peak));
++    return true;
++}
++extern "C" void sweet_graphics_release(uint64_t bytes)
++{
++    uint64_t before;
++    do {
++        before = graphics_used;
++        if (bytes > before) { IOLog("SWEET GRAPHICS: budget release underflow\n"); return; }
++    } while (!OSCompareAndSwap64(before,before-bytes,&graphics_used));
++}
++extern "C" void sweet_graphics_stats(uint64_t out[4])
++{
++    out[0]=graphics_used; out[1]=graphics_peak; out[2]=T290_GRAPHICS_CAP; out[3]=graphics_denied;
++}
++#endif
+ static bool
+ sweet_surface_reserve(uint32_t size)
+ {
+-	uint64_t before = OSAddAtomic64(size, (volatile SInt64 *)&sweet_surface_wired);
+-	if (before + size <= SWEET_SURFACE_WIRED_MAX) return true;
+-	OSAddAtomic64(-(SInt64)size, (volatile SInt64 *)&sweet_surface_wired);
+-	return false;
++#if defined(SWEET_T290)
++    return sweet_graphics_reserve(size);
++#else
++    uint64_t before = OSAddAtomic64(size, (volatile SInt64 *)&sweet_surface_wired);
++    if (before + size <= SWEET_SURFACE_WIRED_MAX) return true;
++    OSAddAtomic64(-(SInt64)size, (volatile SInt64 *)&sweet_surface_wired);
++    return false;
++#endif
+ }
+ 
+ OSDefineMetaClassAndStructors(SweetSurface, OSObject);
+@@ -90,7 +125,11 @@
+ SweetSurface::free()
+ {
+ 	if (memoryAccounted) {
++		#if defined(SWEET_T290)
++		sweet_graphics_release(allocSize);
++#else
+ 		OSAddAtomic64(-(SInt64)allocSize, (volatile SInt64 *)&sweet_surface_wired);
++#endif
+ 	}
+ 	OSSafeReleaseNULL(kernelMap);
+ 	if (memoryPrepared && memory != NULL) {
+@@ -111,13 +150,19 @@
+ 	if (buffer != NULL) {
+ 		return (uintptr_t)buffer->getBytesNoCopy();
+ 	}
+-	IOLockLock(sweet_surface_lock);
+-	if (kernelMap == NULL && memory != NULL) {
+-		kernelMap = memory->map(clientMemory ? kIOMapDefaultCache | kIOMapReadOnly :
+-		    kIOMapWriteCombineCache);
+-	}
+-	IOLockUnlock(sweet_surface_lock);
+-	return kernelMap != NULL ? (uintptr_t)kernelMap->getVirtualAddress() : 0;
++    /* Descriptor mapping may fault/block; never hold the global table lock. */
++    IOLockLock(sweet_surface_lock);
++    IOMemoryMap *map = kernelMap;
++    IOLockUnlock(sweet_surface_lock);
++    if (!map && memory) {
++        IOMemoryMap *candidate = memory->map(clientMemory ? kIOMapDefaultCache | kIOMapReadOnly : kIOMapWriteCombineCache);
++        IOLockLock(sweet_surface_lock);
++        if (!kernelMap) { kernelMap=candidate; candidate=NULL; }
++        map=kernelMap;
++        IOLockUnlock(sweet_surface_lock);
++        OSSafeReleaseNULL(candidate);
++    }
++    return map ? (uintptr_t)map->getVirtualAddress() : 0;
+ }
+ 
+ static uint32_t *
+@@ -741,6 +786,7 @@
+ 	OSObject *addressProp = props->getObject("IOSurfaceAddress");
+ 	OSNumber *address = OSDynamicCast(OSNumber, addressProp);
+ 	s->clientMemory = address != NULL;
++	uint64_t requestedAlloc = OSDynamicCast(OSNumber, props->getObject("IOSurfaceAllocSize")) ? OSDynamicCast(OSNumber, props->getObject("IOSurfaceAllocSize"))->unsigned64BitValue() : 0;
+ 	ret = sweet_surface_layout(s, props, s->clientMemory);
+ 	if ((addressProp != NULL && address == NULL) ||
+ 	    props->getObject("IOSurfaceAddressRanges") != NULL) {
+@@ -791,6 +837,11 @@
+ 	if (ret == kIOReturnSuccess && !sweet_surface_publish(s)) {
+ 		ret = kIOReturnNoResources;
+ 	}
++	if (ret != kIOReturnSuccess) {
++		static uint32_t failures;
++		if (OSIncrementAtomic((volatile SInt32 *)&failures) <= 16)
++			IOLog("SWEET SURF: rejected requested-allocation=%llu address=%d offset=%u min-row=%u bpr=%u height=%u ret=%#x\n", requestedAlloc,s->clientMemory,s->offset,s->elementWidth ? sweet_div_up(s->width,s->elementWidth)*s->bytesPerElement : 0,s->bytesPerRow,s->height,ret);
++	}
+ 	if (ret != kIOReturnSuccess || sweet_surface_creates_logged < 64) {
+ 		char name[32];
+ 		proc_selfname(name, sizeof(name));
+--- a/iokit/Kernel/arm/SweetSurface.h
++++ b/iokit/Kernel/arm/SweetSurface.h
+@@ -15,6 +15,12 @@
+ #include <IOKit/IOBufferMemoryDescriptor.h>
+ #include <libkern/c++/OSObject.h>
+ #include <mach/mach_types.h>
++
++#if defined(SWEET_T290)
++extern "C" bool sweet_graphics_reserve(uint64_t bytes);
++extern "C" void sweet_graphics_release(uint64_t bytes);
++extern "C" void sweet_graphics_stats(uint64_t out[4]);
++#endif
+ 
+ #define SWEET_SURFACE_MAX_PLANES        20
+ 
+--- a/iokit/Kernel/arm/SweetGPU.cpp
++++ b/iokit/Kernel/arm/SweetGPU.cpp
+@@ -99,8 +99,8 @@
+ 		bool imported;
+ 		uint32_t pending;       /* list mode: submit seq using it, PENDING_NEXT, 0 */
+ 	};
+-	enum { PENDING_NEXT = 0xffffffffu, MAX_PREPARED = 1024 };
+-	uint32_t fPrepared[MAX_PREPARED];
++	enum { PENDING_NEXT = 0xffffffffu, MAX_PREPARED = SWEET_GPU_MAX_BUFFERS };
++	uint32_t *fPrepared;
+ 	uint32_t fNumPrepared;
+ 	bool fListMode;
+ 	IOReturn prepare(const uint32_t *handles, uint32_t n);
+@@ -154,7 +154,8 @@
+ 	}
+ 	fLock = IOLockAlloc();
+ 	fBuf = IONew(Buffer, SWEET_GPU_MAX_BUFFERS);
+-	if (fLock == NULL || fBuf == NULL) {
++	fPrepared = IONew(uint32_t, MAX_PREPARED);
++	if (fLock == NULL || fBuf == NULL || fPrepared == NULL) {
+ 		return false;
+ 	}
+ 	bzero(fBuf, sizeof(Buffer) * SWEET_GPU_MAX_BUFFERS);
+@@ -169,11 +170,16 @@
+ 	if (fBuf[i].md == NULL) {
+ 		return;
+ 	}
++	/* A prepared handle may be freed/reused before submission. */
++	for (uint32_t k=0; k<fNumPrepared; ++k) {
++		if (fPrepared[k]==i) { fPrepared[k]=fPrepared[--fNumPrepared]; break; }
++	}
+ 	sweet_gpu_unmap(fBuf[i].gpuaddr, fBuf[i].size);
+ 	sweet_gpu_va_free(fBuf[i].gpuaddr, fBuf[i].size);
+ 	if (fBuf[i].imported) {
+ 		fBuf[i].md->complete();
+ 	}
++	if (!fBuf[i].imported) sweet_graphics_release(fBuf[i].size);
+ 	fBuf[i].md->release();
+ 	fBuf[i].md = NULL;
+ 	fBuf[i].kva = 0;
+@@ -198,6 +204,7 @@
+ void
+ SweetGPUUserClient::free(void)
+ {
++	if (fPrepared != NULL) { IODelete(fPrepared,uint32_t,MAX_PREPARED); fPrepared=NULL; }
+ 	if (fBuf != NULL) {
+ 		IODelete(fBuf, Buffer, SWEET_GPU_MAX_BUFFERS);
+ 		fBuf = NULL;
+@@ -221,14 +228,18 @@
+ 		IOByteCount len = 0;
+ 		addr64_t pa = md->getPhysicalSegment(off, &len, kIOMemoryMapperNone);
+ 		if (pa == 0 || len == 0) {
+-			sweet_gpu_unmap(va, off);
++			sweet_gpu_unmap(va, size);
+ 			sweet_gpu_va_free(va, size);
+ 			return kIOReturnVMError;
+ 		}
+ 		if (len > size - off) {
+ 			len = size - off;
+ 		}
+-		sweet_gpu_map(va + off, pa, len);
++		if (sweet_gpu_map(va + off, pa, len) != 0) {
++			sweet_gpu_unmap(va, size);
++			sweet_gpu_va_free(va, size);
++			return kIOReturnVMError;
++		}
+ 		off += len;
+ 	}
+ 	*vaOut = va;
+@@ -268,9 +279,11 @@
+ 	if (size == 0 || size > 256ULL << 20) {
+ 		return kIOReturnBadArgument;
+ 	}
++	if (!sweet_graphics_reserve(size)) return kIOReturnNoMemory;
+ 	IOBufferMemoryDescriptor *md = IOBufferMemoryDescriptor::inTaskWithOptions(kernel_task,
+ 	    kIODirectionInOut | kIOMemoryKernelUserShared | kIOMapWriteCombineCache, size, 4096);
+ 	if (md == NULL) {
++		sweet_graphics_release(size);
+ 		return kIOReturnNoMemory;
+ 	}
+ 	bzero(md->getBytesNoCopy(), size);
+@@ -281,6 +294,7 @@
+ 	}
+ 	if (ret != kIOReturnSuccess) {
+ 		md->release();
++		sweet_graphics_release(size);
+ 	}
+ 	return ret;
+ }
+@@ -465,6 +479,10 @@
+ 			}
+ 		}
+ 		break;
++	case 10:
++		sweet_graphics_stats(out);
++		outCount = 4;
++		break;
+ 	case 5:
+ 		out[0] = sweet_gpu_fence();
+ 		outCount = 1;
+--- a/bsd/dev/sweet_t290_gpu.c
++++ b/bsd/dev/sweet_t290_gpu.c
+@@ -286,8 +286,12 @@
+ 	if (!gpu_up) {
+ 		return -1;
+ 	}
+-	for (uint64_t us = 0; (int32_t)(*gpu_fence_cpu - seq) < 0; us += 50) {
+-		if (us >= (uint64_t)timeout_ms * 1000) {
++	uint32_t bounded_ms = timeout_ms > 5000 ? 5000 : timeout_ms;
++	uint64_t deadline;
++	clock_interval_to_deadline(bounded_ms, NSEC_PER_MSEC, &deadline);
++	unsigned polls = 0;
++	while ((int32_t)(*gpu_fence_cpu - seq) < 0) {
++		if (mach_absolute_time() >= deadline) {
+ 			static uint32_t reported, nreports;
+ 			if (reported != seq && nreports < 32) {
+ 				reported = seq;
+@@ -300,7 +304,8 @@
+ 			}
+ 			return -1;
+ 		}
+-		delay(50);
++		if (polls++ < 20) delay(50);
++		else IOSleep(1); /* runnable input/USB/render threads keep their CPU */
+ 	}
+ 	return 0;
+ }
+--- a/bsd/dev/sweet_sample.c
++++ b/bsd/dev/sweet_sample.c
+@@ -73,6 +73,12 @@
+ 	(void)tsleep(&chan, PZERO, "sweetsmp", 90 * hz);
+ 	for (int i = 0; i < 40; i++) {
+ 		printf("SMP --- sample %d\n", i);
++#if defined(SWEET_T290)
++		uint64_t graphics[4];
++		extern void sweet_graphics_stats(uint64_t out[4]);
++		sweet_graphics_stats(graphics);
++		printf("SWEET GRAPHICS: used=%llu peak=%llu cap=%llu denied=%llu\n", graphics[0],graphics[1],graphics[2],graphics[3]);
++#endif
+ 		proc_iterate(PROC_ALLPROCLIST, sweet_sample_proc, NULL, NULL, NULL);
+ 		(void)tsleep(&chan, PZERO, "sweetsmp", 120 * hz);
+ 	}

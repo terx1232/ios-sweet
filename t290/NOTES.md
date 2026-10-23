@@ -4,7 +4,49 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff2026-10-24:0143 booted,0144 INSTALLED; hardware test pending
+## Active handoff2026-10-24: GPU stability0145, not installed/approved
+
+- User paused Bluetooth and prioritizes faster UI/stability. Do not assume
+  GPU hardware is the proven cause of the prior CoreAnimation waits.
+- Actual0144 capture: ios-t290/usb-captures/0144/boot-20261024-001048-0144,
+  175 log files, frame3072064B/info121B. Firmware files image=0 metadata=0
+  (full size/hash checks pass), no hardware load/authentication. Actual GPU
+  core clock400MHz. Motion/RTC/HID/memory corrections retained.
+- Android returned; SD request recovered with -Result: done4ops/ok2. Both
+  old-file GETs are ENOENT; both PUTs succeeded6574080/7324B. No new SD
+  request required for0145; graphics bridge remains0139.
+-0145 patch shares512MiB graphics budget between owned GPU buffers and
+  owned/pinned surfaces (imports not counted twice), selector10 and process
+  sample telemetry; map failures unwind reserved VA. Prepared handles4096
+  use dynamic allocation and remove freed indices. IOSurface mapping moved
+  outside global table lock. Fence waits use real deadlines capped5s and
+  yield after initial1ms spin. This does not reset/recover a hung GPU.
+- Failed surface logs now show INPUT allocation, pitch and offset; previous
+  allocSize0 was an output field and did not prove caller requested zero.
+  Final review found possible zero elementWidth in failure diagnostics;
+  guarded before division. Final4ARM64 compile/link/pack and reverse-patch
+  check PASS; final QEMU60s no_panic_observed/unknown_glyphs0. Hardware
+  GPU behavior is not exercised by QEMU. Do not flash older0145.
+- Layout ASan/UBSan PASS; budget ASan/UBSan PASS including160000 concurrent
+  pairs; actual wait function tests PASS (zero/delayed/UINTMAX/wrap/notready).
+  Final image/kernel SHA256 below supersede the initial0145 build.
+-0144 full64MiB backup ios-t290/backup-20261024-stability0145/
+  recovery-before-0145.img SHA256
+  5c4453da28d39e406b4d5589cdce7a1c0cde1a07ba3fbd03168e5314246f7adc.
+  Final0145 push and guarded read-only preflight PASS (model, partition,
+  size, local/device image hash, backup and current partition hash).
+  Image64MiB SHA256
+  fbff4649a6c8fe58d3f792869e6393eae2c4773b0ab8f01291b6faeb820571d2;
+  kernel26608e6f647b6f0571e51c8c32f55533a17615ebc68c08f46fc8fbcf01a6173d.
+  Guard backup directory/flash-0145.ps1. NO0145 write approval; ask after ready
+  under AGENTS.md. No partition written during preparation.
+- Helpers dl/t290-stability, build stability0145{,-objects},qa0145.
+  Bootargs remove t290btprobe/t290btscm/t290btfiles; retain RTC offset,
+  accelerometer, existing GPU clock and framebuffer30Hz.60FPS unverified.
+  Preferences Wallet nil specifier and Photos missing root album remain
+  separate unresolved application failures (see0142 findings below).
+
+## Previous0144 installation handoff
 
 - Actual0143 capture completed139 logs +F3072064B/I121B:
   ios-t290/usb-captures/0143/boot-20261023-235244-0143. SCM convention64,
