@@ -4,7 +4,7 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff 2026-10-23: Bluetooth0140 prepared, approval pending
+## Active handoff 2026-10-23: Bluetooth0140 INSTALLED, hardware boot pending
 
 - 0139 real boot: user confirmed working auto rotation. NativeUSB logs
   ios-t290/usb-captures/0139/boot-20261023-202209-0139 confirm normal
@@ -34,9 +34,10 @@
   Full current0139 backup ios-t290/backup-20261023-bluetooth0140/
   recovery-before-0140.img, local/device/current fullpartition hash
   1ef03e39d3861619fffc9a02a03ba8ea0446382b8f9a3c1323c5b5d77b93f259.
-  flash-0140.ps1 read-only preflight PASS. **NOT FLASHED:0140 approval pending.**
-  AGENTS requires explicit approval before -WriteApproved. No reboot sent.
-- Next: approved guarded flash/readback; user manual boot via recovery menu;
+  flash-0140.ps1 -WriteApproved exit0 after explicit user approval.
+  Full64MiB partition readback PASS76d4d840...00e70; result saved in
+  backup directory/flash-0140-result.json. No reboot sent.
+- Next: user manual boot via recovery menu;
   dl/t290-bluetooth/wait-collect0140.py and collect-more0140.py, inspect
   SWEET BT lines. Actual HCI response still required before claiming live BT.
 - Helpers dl/t290-bluetooth/{build,relink,patch,pack,qemu}0140*.

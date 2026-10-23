@@ -4,7 +4,7 @@
 user confirmed working automatic rotation. Current work: Bluetooth Pronto.
 0140 read-only WCNSS SMEM probe built/tested; QEMU60s PID1 alive/no observed
 panic. Android connected,0139 backup verified,0140 pushed, read-only preflight
-PASS. **0140 NOT installed: explicit partition-write approval pending.**
+PASS. **0140 INSTALLED after explicit approval; full partition SHA256 readback PASS.**
 No Bluetooth HCI response/pairing yet. No clock changes or60FPS/app-fix claim.
 See t290/bluetooth/README.md, motion/README.md and active notes.
 
