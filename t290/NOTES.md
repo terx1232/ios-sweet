@@ -35,6 +35,11 @@
   QEMU smoke and backups before requesting each recovery partition write.
   New boot args add sweetscan Preferences/MobileSlideShow and sweetsample
   MobileSafari/Preferences/MobileSlideShow/backboardd for real failure causes.
+- Packing subsequently PASS (fixed CRLF in helper):0137 image67108864B,
+  SHA87100f2dbc7e3eeec6744e5e3c5f353051b61ca9897d9b54e6670c9fa79ca576.
+  Shim/kernel_dtb unchanged, payload roundtrip PASS. Kernelf4c5706b...bb360;
+  bridge9a960676...7ce8; testb874b3fe...1979a. Not staged/flashed/boot-tested;
+  no QEMU run yet. Source f8c2327. Clock work explicitly cancelled by user.
 - App crash symbolication: both SIGABRT uncaught C++/ObjC terminate through
   libdispatch. Photos stack includes PhotosUICore px_rootAlbumCollectionList;
   Settings includes FBS serial queue. Reasons not captured yet; do not claim
