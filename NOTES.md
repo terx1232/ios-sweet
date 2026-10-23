@@ -1,12 +1,11 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
-**SM-T290 active handoff:** read t290/NOTES.md first.0142 hardware logs:
-RTC correct, SPU assertions0, no driverkitd crash observed after6->64MB floor,
-no50MB watermark EINVAL. GPU guards pass;motion/USB live. Still app crashes:
-Settings nil dictionary in Wallet passbookSpecifier; Photos missing root album.
-FIRST-THROW stacks symbolicated. Also real137x137/bpr576 client-memory
-surface size0 failures. User wants fixes; continue app/data/graphics diagnosis.
-Tablet in iPadOS0142; no new image/staging. BT deferred. No all-fixed claim.
+**SM-T290 active handoff:** read t290/NOTES.md first. User returned priority
+from0142 UI-freeze diagnosis to Bluetooth.0143 built: both SMD banks + heap
+inventory, INFO-only SCM/PIL API availability queries. Compile/link/pack PASS,
+QEMU60s PASS. No0143 backup/push/preflight/approval yet; asked returnAndroid,
+last ADB no device. Preserves0142 RTC/HID/memory fixes. Firmware not loaded,
+Bluetooth not working yet. UI freeze evidence saved, exact cause unresolved.
 
 ## Agent handoff / active work (2026-10-15, latest)
 

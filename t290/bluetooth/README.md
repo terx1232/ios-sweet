@@ -73,3 +73,20 @@ https://android.googlesource.com/kernel/msm.git/+/e38998faf70429357419a02f5850ce
 
 MDT layout/relocation reference:
 https://github.com/torvalds/linux/blob/v6.12/drivers/soc/qcom/mdt_loader.c
+
+##0143 next transport check
+
+Both SMD allocation banks are now inspected (13/14/338 and266/138/202),
+including reference-count/edge validation. The actual private heap boundaries
+are reported separately from missing allocation items. Discovery remains
+read-only and does not mistake stale OPENED metadata for a live controller.
+
+`t290btscm=1` adds only Qualcomm INFO/IS_CALL_AVAILABLE queries. Detect
+SMC64/SMC32 using the INFO self-query, then ask whether PIL init/mem_setup/
+auth_reset/support-query APIs exist. No PIL operation, reset, firmware DMA,
+PMIC change, radio traffic or HCI command is issued. Query errors abort the
+relevant check; an incomplete bounded continuation never triggers ABI fallback.
+API availability alone does not establish PAS6 support or firmware execution.
+
+0143 retains0142 HID/memory/RTC fixes and0139 measured orientation support.
+The reported0142 interface freeze remains unresolved and is a separate issue.

@@ -4,6 +4,47 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Latest steering: resume Bluetooth;0143 built, QEMU60s PASS
+
+- User redirected work back to Bluetooth after0142 freeze investigation.
+  Preserve system/app findings below. New0143 kernel probe reads both SMD
+  allocation banks13/14/338 and266/138/202; reports private WCNSS heap free
+  boundaries and checks channel reference-count + APPS/WCNSS edge6.
+- Opt-in t290btscm=1 sends ONLY INFO/IS_CALL_AVAILABLE (service6/cmd1),
+  self-detects SMC64/SMC32 then queries existence of PIL commands1/2/5/7.
+  No PIL init/memsetup/auth/reset call, PMIC/clock write, FIFO/HCI or RF traffic.
+  Bounded64 interrupted continuations preserve x6 cookie and original args;
+  no ABI fallback/further queries after incomplete continuation.
+  API existence alone does NOT prove PAS6 support or live firmware.
+- ARM64 probe compile PASS, patch reverse-check PASS, full link0, known
+  shim/DTB + payload roundtrip PASS. QEMU0143 completed60s: PID1 alive, no_panic_observed/unknown_glyphs0.
+  dl/k-t290-0143 recovery64MiB SHA256
+  e1796bf60e7ee75c9ff6fad21a48f57b0b1b447ff78c3ffd4fe8d51fb493222a;
+  kernel ee5602e244c1a9d3ca4a073a03a2bb28598269f5d196e64b88fb2e348b74950f.
+  Preserved0142 HID/memory/RTC objects and calibrated offset; graphics unchanged.
+- Asked user returnAndroid+USB. Last ADB no devices (tablet was frozen iPadOS).
+  No0143 backup/push/preflight yet. Guard script prepared in
+  ios-t290/backup-20261023-bluetooth0143. **0143 NOT installed or approved.**
+  After Android: backup current0142/hash, push0143, preflight then explicit
+  approval per AGENTS for write. No new SD update needed for this diagnostic.
+  Helpers dl/t290-bluetooth/*0143*, WSL bluetooth0143{,-objects},qa0143.
+
+###0142 freeze evidence saved before returning to Bluetooth
+
+- User reports screen/power button unresponsive. NativeUSB and sensor samples
+  continue; HID down/up events continue, no observed panic. Captured new
+  log141..144 and frames234000/234106, byte-identical SHAa8bd6fbb...bf51f62,
+  frozen Messages screen with dock visible.
+- SMP samples2 and3 (120s apart) show same SpringBoard main-thread stack
+  waiting in QuartzCore CA::Layer::mark_context_changed+0x1cc via switcher
+  cacheAsynchronousRenderingSurfaces callback. Backboardd render thread5
+  waits in IOKit io_connect_method under CA::OGL::GLContext::update_state;
+  backdrop/point-conversion workers also blocked. Suggests graphics/CA lock
+  dependency; exact kernel selector/lock cause NOT proven. Do not claim GPU
+  hardware hang based on this alone. Safari main repeats dyld MachO load-command
+  traversal address too. Original cache symbol helper dl/t290-system/hang0142.sh.
+- No hang fix implemented. User expressly returned priority to Bluetooth.
+
 ## Active handoff:0142 hardware results, Settings/Photos failures now identified
 
 -0142 actual boot/capture completed141 log chunks +F3072064B/I121B:
