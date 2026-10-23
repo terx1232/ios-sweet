@@ -4,7 +4,47 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff 2026-10-22: FPS and missing UI, kernel 0135 preparation
+## Active handoff 2026-10-23: missing UI, kernel 0135 installed
+
+- **CPU-ICONS1 REAL GPU PASS (2026-10-23).** USB COM7, xfer done3/3.
+  Both ES2/ES3: format0/inferredRGBA and BGRA, stride512, rounds0/1,
+  all4 quadrants including alpha match exactly:32 samples, error0. Guard
+  exit0 enables Mesa. Captures ios-t290/usb-captures/cpu-icons1/: initial
+  logs0/1/2 complete; early F is console, NOT UI. follow0 complete, follow1
+  missing1024 bytes (raw retained). screen-follow.png is actual lock screen,
+  still black with purple "Press home to open". No UI fix found. Captured
+  paths show correct CPU->GPU updates and half attributes, not a whole-CA
+  correctness proof. Stop adding generic tests; inspect actual passes.
+- User asked what causes it: exact cause remains unknown. Next diagnostic
+  captures real inputs/results instead of calling missing content a solved
+  format/clock issue. Added opt-in capture.h, marker'2' (backboardd ONLY),
+  15MiB/256-record file /private/var/tmp/t290eagl-capture.bin: bounded CPU
+  TexImage/SubImage payloads with unpack layout/offsets, IOSurface input
+  bytes, small-FBO post-draw RGBA readbacks, one completed surface1, GL
+  blend/scissor state and uniform values. Restores pack/PBO/read-FBO state.
+  Readbacks synchronize GPU and can hide ordering bugs; not a benchmark or
+  rendering fix. Input IOSurface snapshots have no added producer fence.
+- Same records compressed via Foundation NSData zlib, base64 CAPBEGIN/
+  CAPDATA streamed into kernel/USB L log (2MiB encoded budget). Each record
+  includes raw/packed size and FNV32; decoder rejects lost/corrupt records.
+  File fallback remains if USB loses critical chunks. Drain up to64+ L
+  replies until empty, preserve partial bytes, then:
+  python t290/eagl/decode-capture.py --logs USB_LOG_DIR DECODED_DIR.
+  Outputs capture.bin, manifest.json, stream-status.json, raw payloads,
+  RGBA/alpha PNGs, uniform/state values. Inspect first disappearing/empty
+  stage, do not infer cause from a test PASS alone.
+- **CA-CAPTURE1 BUILT, NOT STAGED.** Local ARM64/iOS16/code-signature pages/
+  test entitlements/211 GLI CALL signatures PASS,10s. New decoder fixtures
+  PASS: paddedBGRA, A8, float16, GLstate, signed coordinates, truncated tail,
+  corrupt header; zlib framed/raw USB streams, missing chunks and bad FNV.
+  /home/kirill/t290-toolchain/build-ca-capture1 and dl/ca-capture1/.
+  Bridge d3d4f9da80fb1523b3bafb6767b72e0b947c30a64363174dff8f63de91606153;
+  test unchanged8a957c2c..., marker trace-marker.txt contains2. Capture mode
+  itself has NOT run on tablet. Current installed bridge009be071..., marker1.
+  ADB absent (tablet iPadOS). Next Android: -Result cpu-icons1 request to
+  recover old test/log; back up current bridge/log/marker and stage ONLY new
+  bridge+marker2. Full SD readback, manual boot, immediate robust USB L drain
+  and F snapshot. Keep existing eagltest guard; no recovery/Mesa/clock change.
 
 - **2026-10-23 CPU-ICONS1 STAGED, awaiting manual iPadOS boot.** Android root
   ADB ready. ca-half1 request confirmed done5/5; previous bridge/test/log

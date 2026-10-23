@@ -7,8 +7,10 @@ complete home-screen USB screenshot saved. CA-like constant/u8 vertex color,
 matrix and offscreen-pass tests PASS on real ES2 and ES3. Actual CA binary
 uses half-float colors in 48-byte client vertices; matching VBO/client-indexed
 tests PASS on real ES2/ES3 (ca-half1, ae44121); real CA client values valid.
-New CPU-written 120x120 icon import/update test staged and fully read back
-(dl/cpu-icons1, c46d0b4), awaiting manual boot. Latest USB screenshot lacks content.
+CPU-written 120x120 RGBA/BGRA icon import/update test PASS:32 pixel samples,
+both APIs, both CPU updates. Real interface still black/purple. Prepared
+bounded real-CA texture/FBO/state capture with checksummed USB log streaming
+(dl/ca-capture1), built locally but NOT staged. Need Android for installation.
 Live CPU config selects ~1.7088GHz, all4 cores; GPU400MHz. Stock tables have
 CPU2016MHz/GPU650MHz (GPU bin0); full DVFS not implemented, no clocks changed.
 No visual fix claimed. Zero-time recount panic recurred on CPU2, unresolved.

@@ -73,6 +73,7 @@ special = {
     'scissor': 't290_scissor',
     'viewport': 't290_viewport',
     'tex_image2D': 't290_tex_image2d',
+    'tex_sub_image2D': 't290_tex_sub_image2d',
     'compressed_tex_image2D': 't290_compressed_tex_image2d',
     'generate_mipmap_EXT': 't290_generate_mipmap',
     'shader_source_ARB': 't290_shader_source',
@@ -135,6 +136,8 @@ for i, member in enumerate(members):
     if name in check_calls:
         assert ret == 'void', (name, ret)
         out.append(f'  t290_after_call({i}, "{name}");')
+    if name in draw_calls:
+        out.append('  t290_capture_after_draw(current_ctx());')
     out.append('}')
     rows.append((i, name, candidates))
 out.append('static void t290_dispatch_init(void) {')

@@ -50,6 +50,37 @@ Write `0` to the marker and restart the daemon/boot to disable it.
 Trace-enabled performance is not a benchmark. The USB viewer collects the
 kernel log while requesting full native-panel frames.
 
+Marker `2` also captures real compositor pixels in
+`/private/var/tmp/t290eagl-capture.bin`, capped at 15 MiB and 256 records.
+It records bounded CPU uploads (including subimage offsets), small draw-FBO
+readbacks, sampled IOSurface inputs, one completed surface1, blend/scissor
+state and shader uniforms. GPU readbacks restore pack/PBO/read-FBO state.
+They synchronize execution and can hide an ordering fault, so a changed
+appearance during capture is evidence to investigate, not a rendering fix.
+IOSurface input records are CPU observations without an added GPU fence.
+
+Compressed, checksummed records are also streamed into the USB log, capped
+at 2 MiB of encoded data. Drain the log until empty, preserving partial
+packets, then decode without another boot:
+
+```powershell
+python t290/eagl/decode-capture.py --logs D:\test1\ios-t290\usb-captures\ca-capture1 D:\test1\dl\ca-capture1\decoded
+```
+
+Missing/corrupt records are listed in `stream-status.json`, never treated as
+valid images. The on-device file remains the fallback for dropped records.
+
+Fetch the bundle using the normal SD GET procedure, then decode on this PC:
+
+```powershell
+python t290/eagl/decode-capture.py D:\test1\dl\ca-capture1\capture.bin D:\test1\dl\ca-capture1\decoded
+```
+
+The decoder preserves raw payloads, outputs RGBA and alpha-mask PNGs, and
+writes a JSON manifest. It retains complete records when a panic leaves a
+truncated tail. Rows stay in memory/GL order; it does not guess orientation.
+`1` returns to logging only and `0` disables diagnostics on the next boot.
+
 Full XNU kernel builds are still performed in the macOS workflow. Local kernel
 single-file compilation uses the existing cached generated headers in WSL;
 the complete Darwin kernel build/link toolchain has not been ported here.

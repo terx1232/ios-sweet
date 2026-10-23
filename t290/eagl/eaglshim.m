@@ -6,6 +6,7 @@
 #include <dispatch/dispatch.h>
 #include <TargetConditionals.h>
 #include <dlfcn.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
@@ -36,6 +37,7 @@ static void *(*mesa_image)(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uin
 static void (*mesa_image_destroy)(void *);
 static void *gli_funcs[1100];
 static BOOL trace_render;
+static BOOL capture_render;
 static pthread_key_t current_key;
 /* The pthread key owns the context and runs its exit destructor. The raw
  * TLS mirror avoids a pthread lookup at every context-first GLI call. */
@@ -75,6 +77,11 @@ static struct {
     void (*GetVertexAttribiv)(GLuint, GLenum, GLint *);
     void (*GetVertexAttribfv)(GLuint, GLenum, GLfloat *);
     void (*GetVertexAttribPointerv)(GLuint, GLenum, void **);
+    void (*ReadPixels)(GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void *);
+    void (*PixelStorei)(GLenum, GLint), (*BindBuffer)(GLenum, GLuint);
+    void (*TexSubImage2D)(GLenum, GLint, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, const void *);
+    void (*GetUniformfv)(GLuint, GLint, GLfloat *);
+    void (*GetUniformiv)(GLuint, GLint, GLint *);
 } gl;
 
 static void plog(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
@@ -141,6 +148,7 @@ static const struct { const void *replacement, *original; } surface_interpose[] 
     size_t dirtyStart, dirtyEnd;        /* GPU-written rows not yet published */
     void *image;
     uint32_t seed;
+    uint32_t pixelFormat;
     BOOL gpuDirty;
     BOOL scanout;                       /* full-screen: CA may present it */
 }
@@ -283,6 +291,7 @@ static inline T290Context *current_ctx(void)
 {
     return (__bridge T290Context *)thread_current;
 }
+static void t290_capture_present(T290Context *ctx);
 
 static void t290_missing(unsigned slot, const char *name)
 {
@@ -418,6 +427,7 @@ static void t290_flush(void)
         [ctx.sharegroup.dirty removeObject:display];
     }
     frame_stats(ctx);
+    t290_capture_present(ctx);
 }
 
 static void update_draw_image(T290Context *ctx)
@@ -535,6 +545,8 @@ static void t290_before_draw(int kind)
     image_mark(img, (size_t)y0, (size_t)y1);
 }
 
+#include "capture.h"
+
 /* Bounded diagnostics for disappearing content. Enabled by a file marker;
  * normal rendering does not query or log this state. */
 static void t290_trace_draw(T290Context *ctx)
@@ -610,6 +622,7 @@ static void t290_trace_draw(T290Context *ctx)
             format, min, max, swizzle[0], swizzle[1], swizzle[2], swizzle[3]);
     }
     gl.ActiveTexture((GLenum)active);
+    t290_capture_sources(ctx);
     GLenum diagnostic_error = gl.GetError();
     if (diagnostic_error) plog("TRACE query error %#x", diagnostic_error);
 }
@@ -817,8 +830,15 @@ static void t290_tex_image2d(GLenum target, GLint level, GLint internal, GLsizei
     GLint border, GLenum format, GLenum type, const GLvoid *pixels)
 {
     gl.TexImage2D(target, level, internal, w, h, border, format, type, pixels);
+    t290_capture_upload(target, level, 0, 0, w, h, format, type, pixels);
     tex_level_defined(target, level, (GLenum)internal, w, h, format, type);
     log_upload_format("texture upload", internal, format, type);
+}
+static void t290_tex_sub_image2d(GLenum target, GLint level, GLint x, GLint y,
+    GLsizei w, GLsizei h, GLenum format, GLenum type, const void *pixels)
+{
+    gl.TexSubImage2D(target, level, x, y, w, h, format, type, pixels);
+    t290_capture_upload(target, level, x, y, w, h, format, type, pixels);
 }
 static void t290_compressed_tex_image2d(GLenum target, GLint level, GLenum internal, GLsizei w,
     GLsizei h, GLint border, GLsizei size, const GLvoid *data)
@@ -944,6 +964,7 @@ static uintptr_t unsupported_private(void *ctx, ...)
     if (!mirror) {
         mirror = [T290SurfaceImage new];
         mirror->source = (IOSurfaceRef)CFRetain(surface);
+        mirror->pixelFormat = fourcc;
     }
     /* Freedreno's import pitch: 64 pixels (cpp 4: 256 bytes, LA08: 128). */
     size_t bpe = fourcc == 0x4c413038 || fourcc == 0x52473838 ? 2 :
@@ -1063,7 +1084,10 @@ __attribute__((constructor)) static void bridge_init(void)
         int trace_fd = open("/private/var/tmp/t290eagl.trace", O_RDONLY);
         if (trace_fd >= 0) {
             char enabled = 0;
-            trace_render = read(trace_fd, &enabled, 1) == 1 && enabled == '1';
+            if (read(trace_fd, &enabled, 1) == 1) {
+                trace_render = enabled == '1' || enabled == '2';
+                capture_render = enabled == '2';
+            }
             close(trace_fd);
         }
     }
@@ -1093,7 +1117,7 @@ __attribute__((constructor)) static void bridge_init(void)
         !LOAD(DeleteRenderbuffers) || !LOAD(ActiveTexture) || !LOAD(Enable) || !LOAD(Disable) ||
         !LOAD(Scissor) || !LOAD(Viewport) || !LOAD(EGLImageTargetTexture2DOES) ||
         !LOAD(EGLImageTargetRenderbufferStorageOES) || !LOAD(TexParameteri) || !LOAD(GenerateMipmap) ||
-        !LOAD(TexImage2D) || !LOAD(CompressedTexImage2D) || !LOAD(ShaderSource) ||
+        !LOAD(TexImage2D) || !LOAD(TexSubImage2D) || !LOAD(CompressedTexImage2D) || !LOAD(ShaderSource) ||
         !LOAD(GetTexParameteriv) || !LOAD(AttachShader) || !LOAD(GetUniformLocation)) {
         plog("t290eagl: incompatible Mesa: GL entry point missing");
         mesa_create = NULL;
@@ -1103,6 +1127,11 @@ __attribute__((constructor)) static void bridge_init(void)
     LOAD(GetVertexAttribiv);
     LOAD(GetVertexAttribfv);
     LOAD(GetVertexAttribPointerv);
+    LOAD(ReadPixels);
+    LOAD(PixelStorei);
+    LOAD(BindBuffer);
+    LOAD(GetUniformfv);
+    LOAD(GetUniformiv);
 #undef LOAD
     t290_dispatch_init();
     Class c = objc_getClass("EAGLContext");
@@ -1115,4 +1144,5 @@ __attribute__((constructor)) static void bridge_init(void)
     }
     plog("t290eagl: Mesa bridge ready in %s; GLI adapters %zu, EAGL class %p",
         getprogname(), sizeof(gli_adapters) / sizeof(gli_adapters[0]), c);
+    if (capture_render) plog("t290eagl: real compositor capture enabled, limit 15 MiB / 256 records");
 }
