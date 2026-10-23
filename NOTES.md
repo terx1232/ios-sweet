@@ -1,6 +1,15 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
-**SM-T290 active handoff2026-10-24:** GPU stability is now the priority;
+**SM-T290 active handoff2026-10-24:**0145 froze in Safari. Live USB captured
+actual GPU SMMU fault FSR0x202/FAR0x10ae4600, fence stuck17737; kernel/USB/
+sensor alive. Budget peak~63MiB, no rejections.0146 built/tested/QEMU60sPASS:
+wait before buffer unmap, retain imported surfaces, retain timed-out client,
+accept exact last-pixel extent for caller textures. Cause of actual fault
+still not proven. Android ready;0145 backup and0146 push/preflight PASS.
+0146 NOT installed/approved; next ask write approval, then hardware test.
+Read t290/NOTES.md first.
+
+**Prior0145 handoff:** GPU stability is now the priority;
 Bluetooth work paused at user request.0144 hardware firmware-file SHA checks
 PASS, no firmware execution/HCI.0145 adds shared graphics budget, bounded
 yielding fence waits, mapping lock/error fixes and telemetry. Local tests PASS;

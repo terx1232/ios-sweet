@@ -4,7 +4,55 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff2026-10-24: GPU stability0145 INSTALLED, hardware test pending
+## Active handoff2026-10-24:0145 GPU fault captured;0146 ready, NOT installed/approved
+
+- User reported0145 frozen. NativeUSB COM7 remained live; capture saved in
+  ios-t290/usb-captures/0145/boot-20261024-003258-0145,106 log records
+  (log004 partial48764B; others retain packet status), full F3072064B/I121B.
+  Screenshot Safari blank start page in landscape. No observed kernel panic.
+- Actual GPU fault: seq17744 first timeout, fence17737 stuck, CB0FSR0x202,
+  FAR0x10ae4600; later queuedseq17821 but fence still17737. Kernel/HID/USB/
+  KXTJ3 continue.0145 prevents endless single wait but cannot recover this
+  GPU fault. Graphics used26838968B/peak65725332B/cap536870912B/denied0:
+  quota exhaustion is not supported by this sample. EAGL guard passed.
+  Bridge reports11..39.9 rendered frames/s in300-frame windows; these are
+  not measured panel refresh rates. Preserve30Hz setting, no60FPS claim.
+- Actual rejected137x137 client textures request78884 bytes =576*136+548:
+  valid final-pixel extent without final-row28B padding. Prior layout required
+ 78912.0146 accepts this exact extent for wrapped single-plane rows only;
+  78883 still rejected, no extension of caller memory. Automatic sizes keep
+  full stride*height. Planar explicit size validation remains strict. Bridge
+  uses aligned owned backing for all client memory and copies only rowBytes.
+-0146 additionally enforces a conservative global submitted-fence wait
+  before freeing/unmapping buffers (previously solely caller responsibility),
+  serialized with same-client Submit. Timeout returns without releasing
+  memory. Timed-out clientClose retains client/buffers until reboot (no GPU
+  reset/recovery implemented). Imported BOs now retain SweetSurface, preserving
+  both lifetime and shared graphics quota until actual release. This closes
+  real unsafe lifetime paths; actual FAR fault's allocation is not identified,
+  so no claim that its cause or system freezes are fully fixed.
+- New actual release/clientClose ASan/UBSan test PASS: timeout leaves mapping/
+  reservation intact, success frees once, imported surface retained/released,
+  prepared indices removed, repeated timed-out close retains client once.
+  Layout test covers exact78884/one-byte-short78883. Existing layout/budget/
+  wait checks PASS. FourARM64 files compile, full relink, known shim/DTB,
+  payload roundtrip/reverse-patch PASS; QEMU60s no_panic_observed/glyph0.
+- dl/k-t290-0146/recovery-0146.img64MiB SHA256
+  9efbdee020b4c877f3f0864c0c89c64da7d7c9793cf5a3d5b2f6b1871a7368e8;
+  kernel8da260792d945460cd1b7a8726dde018bc4b64e0a2becfaad833357508526191.
+  Graphics bridge/eagltest unchanged0139. No SD request staged. BT paused.
+- User returnedAndroid+USB. Backup0145 local/device hash verified in
+  ios-t290/backup-20261024-stability0146/recovery-before-0146.img,
+  SHAfbff4649a6c8fe58d3f792869e6393eae2c4773b0ab8f01291b6faeb820571d2.
+  Final0146 pushed; guarded read-only flash-0146.ps1 preflight PASS.
+  NO0146 write approval. Ask explicit approval under AGENTS.md, then guarded
+  -WriteApproved/full readback; manual boot and reproduce Safari+rotation.
+  Capture fault and retaining-busy-buffer logs; further fault mapping history
+  or GPU recovery may be needed if fault persists.
+- Helpers dl/t290-stability/*0146*, baseline0145 files saved there.
+  WSL stability0146{,-objects}/qa0146. Patch0146 builds on0145.
+
+## Prior0145 installation handoff
 
 - Android USB reconnected after user action. Guard flash-0145.ps1
   -WriteApproved exit0: complete preflight PASS,64MiB write and full partition

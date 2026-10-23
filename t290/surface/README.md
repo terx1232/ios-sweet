@@ -1,3 +1,26 @@
+# Buffer lifetime and final-row extent (0146)
+
+0145 hardware testing captured a GPU SMMU fault while the kernel and USB
+continued running. The graphics budget was below its cap. The faulting
+allocation has not been identified; these changes do not prove recovery.
+
+Patch0146 waits for already submitted GPU work before releasing mappings.
+Free returns a timeout without releasing busy memory. A timed-out close
+retains the client and its buffers until reboot. Imported buffers retain
+their SweetSurface so the backing and graphics budget survive the import.
+This is conservative lifetime protection; hardware GPU reset is absent.
+
+Caller memory can end exactly after the last pixel in the final row:
+137x137 RGBA at576-byte stride needs78884 bytes, rather than78912 including
+unused final padding. A78883-byte allocation remains invalid. Client
+memory still uses owned GPU mirrors and row-sized copies. Automatic sizing
+and explicit planar bounds remain unchanged.
+
+```
+python3 t290/surface/test-free.py /path/to/xnu/iokit/Kernel/arm/SweetGPU.cpp
+python3 t290/surface/test-layout.py /path/to/xnu/iokit/Kernel/arm/SweetSurface.cpp
+```
+
 # Graphics stability (0145)
 
 Patch0145 shares a 512MiB reservation budget between owned GPU buffers and

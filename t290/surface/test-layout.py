@@ -83,7 +83,9 @@ int main() {
     p.number("IOSurfaceWidth", 137); p.number("IOSurfaceHeight", 137);
     p.number("IOSurfaceBytesPerRow", 576);
     assert(sweet_surface_layout(&s, &p, true) == 0 && s.allocSize == 78912);
-    p.number("IOSurfaceAllocSize", 78911);
+    p.number("IOSurfaceAllocSize", 78884); // final row contains137*4 bytes, no tail padding
+    assert(sweet_surface_layout(&s, &p, true) == 0 && s.allocSize == 78884);
+    p.number("IOSurfaceAllocSize", 78883);
     assert(sweet_surface_layout(&s, &p, true) == kIOReturnBadArgument);
     p.number("IOSurfaceWidth", 120); p.number("IOSurfaceHeight", 120);
     p.number("IOSurfaceBytesPerRow", 480); p.objects.erase("IOSurfaceAllocSize");

@@ -1,0 +1,212 @@
+--- a/iokit/Kernel/arm/SweetSurface.cpp
++++ b/iokit/Kernel/arm/SweetSurface.cpp
+@@ -373,6 +373,13 @@
+ 		    ~(uint64_t)(SWEET_SURFACE_ROW_ALIGN - 1));
+ 	}
+ 	end = (uint64_t)s->offset + (uint64_t)s->bytesPerRow * sweet_div_up(s->height, s->elementHeight);
++	/* Client allocations need cover the last pixel, not unused tail padding.
++	 * GPU imports of client memory remain forbidden; the bridge copies rows. */
++	if (wrapped && s->height && s->width) {
++		end = (uint64_t)s->offset + (uint64_t)s->bytesPerRow *
++		    (sweet_div_up(s->height,s->elementHeight)-1) +
++		    (uint64_t)sweet_div_up(s->width,s->elementWidth)*s->bytesPerElement;
++	}
+ 
+ 	s->planeCount = 0;
+ 	if (planes != NULL) {
+@@ -429,7 +436,8 @@
+ 		/* Zero requests automatic sizing, as does an omitted size.
+ 		 * Positive undersized allocations must still be refused. */
+ 		if (alloc == 0) {
+-			alloc = end;
++			alloc = (uint64_t)s->offset + (uint64_t)s->bytesPerRow * sweet_div_up(s->height,s->elementHeight);
++			if (alloc < end) alloc = end;
+ 		}
+ 		if (alloc < end) {
+ 			return kIOReturnBadArgument;
+--- a/iokit/Kernel/arm/SweetGPU.cpp
++++ b/iokit/Kernel/arm/SweetGPU.cpp
+@@ -24,8 +24,8 @@
+  * Imported surfaces keep their CPU caching: their D-cache lines are cleaned
+  * and invalidated to the point of coherency before every submit and after
+  * every successful wait (the GPU does not snoop).
+- * Buffers are freed with the client; waiting for the GPU before Free is
+- * the caller's job.
++ * Free waits for queued work before unmapping. A timed-out close retains
++ * the client and its buffers until reboot rather than unmapping live memory.
+  */
+ #if defined(ARM64_BOARD_CONFIG_SWEET) && defined(SWEET_T290)
+ #include <IOKit/IOLib.h>
+@@ -94,6 +94,7 @@
+ private:
+ 	struct Buffer {
+ 		IOMemoryDescriptor *md;
++		SweetSurface *surface; /* imports retain the surface and its budget */
+ 		uint64_t gpuaddr, size;
+ 		uintptr_t kva;          /* cached imported surface: flushed around GPU use */
+ 		bool imported;
+@@ -103,6 +104,7 @@
+ 	uint32_t *fPrepared;
+ 	uint32_t fNumPrepared;
+ 	bool fListMode;
++	bool fQuarantined;
+ 	IOReturn prepare(const uint32_t *handles, uint32_t n);
+ 	void submitted(uint32_t seq);
+ 	void completed(uint32_t seq);
+@@ -114,7 +116,7 @@
+ 	IOReturn add_buffer(IOMemoryDescriptor *md, uint64_t va, uint64_t size, uintptr_t kva,
+ 	    bool imported, uint64_t *out);
+ 	void flush_surfaces(void);
+-	void release_buffer(uint32_t i);
++	bool release_buffer(uint32_t i);
+ };
+ OSDefineMetaClassAndStructors(SweetGPUUserClient, IOUserClient);
+ 
+@@ -161,14 +163,24 @@
+ 	bzero(fBuf, sizeof(Buffer) * SWEET_GPU_MAX_BUFFERS);
+ 	fNumPrepared = 0;
+ 	fListMode = false;
++	fQuarantined = false;
+ 	return true;
+ }
+ 
+-void
++bool
+ SweetGPUUserClient::release_buffer(uint32_t i)
+ {
+ 	if (fBuf[i].md == NULL) {
+-		return;
++		return true;
++	}
++	/* Caller holds fLock, serializing our Submit and Free. Global sequence
++	 * includes every queued command, including non-imported BO references. */
++	uint32_t queued = sweet_gpu_last_submit();
++	if (sweet_gpu_wait(queued,5000) != 0) {
++		static unsigned logged;
++		if (logged++ < 8) IOLog("SWEET GPU: retaining busy buffer va=%#llx size=%llu queued=%u done=%u\n",
++		    fBuf[i].gpuaddr,fBuf[i].size,queued,sweet_gpu_fence());
++		return false;
+ 	}
+ 	/* A prepared handle may be freed/reused before submission. */
+ 	for (uint32_t k=0; k<fNumPrepared; ++k) {
+@@ -182,9 +194,11 @@
+ 	if (!fBuf[i].imported) sweet_graphics_release(fBuf[i].size);
+ 	fBuf[i].md->release();
+ 	fBuf[i].md = NULL;
++	OSSafeReleaseNULL(fBuf[i].surface);
+ 	fBuf[i].kva = 0;
+ 	fBuf[i].imported = false;
+ 	fBuf[i].pending = 0;
++	return true;
+ }
+ 
+ IOReturn
+@@ -192,8 +206,12 @@
+ {
+ 	if (fBuf != NULL) {
+ 		IOLockLock(fLock);
+-		for (uint32_t i = 0; i < SWEET_GPU_MAX_BUFFERS; i++) {
+-			release_buffer(i);
++		/* One bounded wait at close, not five seconds per buffer. */
++		if (sweet_gpu_wait(sweet_gpu_last_submit(),5000) != 0) {
++			if (!fQuarantined) { retain(); fQuarantined=true; }
++			IOLog("SWEET GPU: timed-out client quarantined until reboot\n");
++		} else {
++			for (uint32_t i=0;i<SWEET_GPU_MAX_BUFFERS;i++) release_buffer(i);
+ 		}
+ 		IOLockUnlock(fLock);
+ 	}
+@@ -326,9 +344,9 @@
+ 			kva = s->kernelAddress();
+ 		}
+ 	}
+-	s->release();
+ 	if (md == NULL || size == 0) {
+ 		OSSafeReleaseNULL(md);
++		s->release();
+ 		return kIOReturnBadArgument;
+ 	}
+ 	if (size > md->getLength()) {
+@@ -337,6 +355,7 @@
+ 	IOReturn ret = md->prepare();
+ 	if (ret != kIOReturnSuccess) {
+ 		md->release();
++		s->release();
+ 		return ret;
+ 	}
+ 	uint64_t va = 0;
+@@ -348,6 +367,11 @@
+ 		md->complete();
+ 		md->release();
+ 	}
++	if (ret == kIOReturnSuccess) {
++		IOLockLock(fLock);
++		fBuf[out[0]-1].surface=s;
++		IOLockUnlock(fLock);
++	} else s->release();
+ 	static int logged;
+ 	if (logged++ < 16) {
+ 		printf("SWEET GPU: import surface %u -> %#llx + %#llx%s (0x%x)\n", id, va, size,
+@@ -392,14 +416,12 @@
+ void
+ SweetGPUUserClient::submitted(uint32_t seq)
+ {
+-	IOLockLock(fLock);
+ 	for (uint32_t k = 0; k < fNumPrepared; k++) {
+ 		if (fBuf[fPrepared[k]].pending == PENDING_NEXT) {
+ 			fBuf[fPrepared[k]].pending = seq;
+ 		}
+ 	}
+ 	fNumPrepared = 0;
+-	IOLockUnlock(fLock);
+ }
+ 
+ /* GPU writes of finished submits: drop the CPU's stale lines */
+@@ -450,7 +472,7 @@
+ 			break;
+ 		}
+ 		IOLockLock(fLock);
+-		release_buffer((uint32_t)in[0] - 1);
++		if (!release_buffer((uint32_t)in[0] - 1)) ret=kIOReturnTimeout;
+ 		IOLockUnlock(fLock);
+ 		break;
+ 	case 3:
+@@ -461,11 +483,13 @@
+ 		if (!fListMode) {
+ 			flush_surfaces();
+ 		}
++		IOLockLock(fLock);
+ 		out[0] = sweet_gpu_submit(in[0], (uint32_t)in[1]);
+ 		ret = out[0] ? kIOReturnSuccess : kIOReturnError;
+ 		if (fListMode && out[0]) {
+ 			submitted((uint32_t)out[0]);
+ 		}
++		IOLockUnlock(fLock);
+ 		outCount = 1;
+ 		break;
+ 	case 4:
+--- a/bsd/dev/sweet_t290_gpu.c
++++ b/bsd/dev/sweet_t290_gpu.c
+@@ -138,6 +138,12 @@
+ }
+ 
+ uint32_t
++sweet_gpu_last_submit(void)
++{
++	return fence_seq;
++}
++
++uint32_t
+ sweet_gpu_fence(void)
+ {
+ 	return gpu_up ? *gpu_fence_cpu : 0;
+--- a/bsd/dev/sweet_t290_gpu.h
++++ b/bsd/dev/sweet_t290_gpu.h
+@@ -16,6 +16,7 @@
+ #define SWEET_GPU_GMEM_SIZE     0x22000u        /* kgsl: gmem 0x22000 at 0x100000 */
+ 
+ int      sweet_gpu_ready(void);
++uint32_t sweet_gpu_last_submit(void);
+ /* reserve a GPU VA range of size bytes (64 KiB granules); 0 on failure */
+ uint64_t sweet_gpu_va_alloc(uint64_t size);
+ void     sweet_gpu_va_free(uint64_t va, uint64_t size);
