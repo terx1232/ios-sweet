@@ -4,12 +4,16 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff 2026-10-23:0139 PREPARED, Android connected, approval pending
+## Active handoff 2026-10-23:0139 INSTALLED, next hardware boot pending
 
-- User requested fix and said returning to Android. ADB/root ready. New0139
-  image built/pushed/preflighted, current0138 recovery fullbackup verified at
-  ios-t290/backup-20261023-motion0139/recovery-before-0139.img. NO0139 partition
-  write yet. Explicit approval for0139 is still needed before -WriteApproved.
+- 0139 INSTALLED after explicit user approval (2026-10-23). Guarded
+  ios-t290/backup-20261023-motion0139/flash-0139.ps1 -WriteApproved exit0.
+  Full64MiB recovery partition SHA256 readback PASS:
+  1ef03e39d3861619fffc9a02a03ba8ea0446382b8f9a3c1323c5b5d77b93f259.
+  Previous0138 fullbackup verified/retained in that directory. No reboot
+  command sent. SD8op request staged/verified and not consumed yet.
+  Next manual iPadOS boot; wait-collect0139.py/collect-more0139.py in
+  dl/t290-motion target usb-captures/0139. Actual rotation/hang test pending.
 - Kernel patch0139: labelled-pose axis map raw(-X,+Y,+Z), HID page0xff00/usage3
   (actual BKOrientationManager matcher), start existing process sampler on SD
   root (previously never called there). Boot sample targets now include
@@ -35,8 +39,7 @@
   plus marker0. Full84601858B readback PASS SHA
   76df46da5d162e2b25f8521e18d219a3382621070007cd0df421208d4fa3865b.
   Do not stage another request before recovering these GETs after next boot.
-- Next after approval: guarded backup-20261023-motion0139/flash-0139.ps1
-  -WriteApproved, full partition hash readback; manual iPadOS boot, nativeUSB
+- Next: manual iPadOS boot, nativeUSB
   collect for0139, verify guard, motion hook installation and sensor sender,
   delivered orientation transitions, actual rotation/lock/touch. Inspect SMP
   stacks if UI freezes. Do NOT claim60FPS or app/hang fixes yet.

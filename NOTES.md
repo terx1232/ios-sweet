@@ -6,7 +6,8 @@ bridge and SD-root process sampler for unresolved UI hangs. Source and build
 checks PASS;60s QEMU PID1 alive/no observed panic. Real rotation and hang fix
 NOT verified. Android connected,0138 backup verified,0139 image pushed and
 read-only preflight PASS. New bridge/test SD request8ops staged/full readback
-PASS. Recovery0139 NOT written; explicit approval required next. No clocks
+PASS. Recovery0139 INSTALLED after explicit approval; full partition SHA readback
+PASS1ef03e39...93f259. Next manual boot and actual rotation/hang tests. No clocks
 changed, no60FPS/app-fix claim. See t290/motion/README.md and active notes.
 
 ## Agent handoff / active work (2026-10-15, latest)
