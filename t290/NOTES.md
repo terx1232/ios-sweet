@@ -4,7 +4,48 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
-## Active handoff 2026-10-23:0139 INSTALLED, next hardware boot pending
+## Active handoff 2026-10-23: Bluetooth0140 prepared, approval pending
+
+- 0139 real boot: user confirmed working auto rotation. NativeUSB logs
+  ios-t290/usb-captures/0139/boot-20261023-202209-0139 confirm normal
+  orientation manager hook, KXTJ3 sender and measured orientation delivery.
+  SMP sampler emits samples on SD root. UI stability/app fixes UNPROVEN.
+- 0139 SD request consumed8/8; prior GETs recovered into dl/k-t290-0139/before.
+  No new SD request staged. Graphics/test stay0139 unchanged.
+- Android BT enabled/ON via Qualcomm Pronto, SMD CMD CID7 / ACL CID8,
+  8KiB half-FIFOs. Dumps/firmware outside git: dl/t290-bluetooth.
+  Never access Android HAL-owned smd2/3 concurrently.
+- e8bcb95 adds patch0140: bounded read-only APPS/WCNSS SMEM probe,
+  0x86300000/1MiB, t290btprobe=1. No writes/firmware/PMIC/clocks/HCI.
+  Stale metadata is NOT proof of live controller. PAS6/Pronto startup,
+  relocated MDT firmware loading, SMD handshake/HCI and iPadOS service
+  adaptation remain unfinished. No Bluetooth/pairing claim.
+- Host parser ASan/UBSan PASS including cached traversal and20000 corrupt
+  fixtures. Use -fno-pie -no-pie to avoid intermittent WSL ASan startup
+  SIGSEGV. Two ARM64 objects compile PASS, patch reverse-check PASS,
+  relink exit0, shim/DTB hashes and payload roundtrip PASS.
+  QEMU60s PID1 alive5 messages, no_panic_observed/unknown_glyphs0.
+  Hardware probe disabled in QEMU; this is not a Bluetooth hardware test.
+- dl/k-t290-0140 recovery64MiB SHA256:
+  76d4d840d86156494f6365dd922ebef7848080965a32062ef20fa90485f00e70.
+  Kernel ffcebd8a21b60166f3e9c0d22aa6f41135f17c2b9dfbaf96f8378e3bee37fe7d.
+  Bridge0b6dab70...dd9b51/testb874b3fe...1979a unchanged0139.
+- Android connected. Image pushed /data/local/tmp/recovery-0140.img.
+  Full current0139 backup ios-t290/backup-20261023-bluetooth0140/
+  recovery-before-0140.img, local/device/current fullpartition hash
+  1ef03e39d3861619fffc9a02a03ba8ea0446382b8f9a3c1323c5b5d77b93f259.
+  flash-0140.ps1 read-only preflight PASS. **NOT FLASHED:0140 approval pending.**
+  AGENTS requires explicit approval before -WriteApproved. No reboot sent.
+- Next: approved guarded flash/readback; user manual boot via recovery menu;
+  dl/t290-bluetooth/wait-collect0140.py and collect-more0140.py, inspect
+  SWEET BT lines. Actual HCI response still required before claiming live BT.
+- Helpers dl/t290-bluetooth/{build,relink,patch,pack,qemu}0140*.
+  WSL work /home/kirill/t290-local-kernel/bluetooth0140{,-objects},qa0140.
+  Preserved motion0139 HID/accel objects; graphics unchanged. No DVFS work.
+
+### Historical0139 preparation (hardware result supersedes pending claims)
+
+### Historical handoff 2026-10-23:0139 INSTALLED, next hardware boot pending
 
 - 0139 INSTALLED after explicit user approval (2026-10-23). Guarded
   ios-t290/backup-20261023-motion0139/flash-0139.ps1 -WriteApproved exit0.
