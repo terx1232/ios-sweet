@@ -22,11 +22,12 @@
   e1796bf60e7ee75c9ff6fad21a48f57b0b1b447ff78c3ffd4fe8d51fb493222a;
   kernel ee5602e244c1a9d3ca4a073a03a2bb28598269f5d196e64b88fb2e348b74950f.
   Preserved0142 HID/memory/RTC objects and calibrated offset; graphics unchanged.
-- Asked user returnAndroid+USB. Last ADB no devices (tablet was frozen iPadOS).
-  No0143 backup/push/preflight yet. Guard script prepared in
+- User returnedAndroid+USB. Full0142 backup verified locally/currentpartition,
+  SHA9a650cab...b5e1fb;0143 pushed/hash verified. Read-only preflight PASS.
+  Guard script in
   ios-t290/backup-20261023-bluetooth0143. **0143 NOT installed or approved.**
-  After Android: backup current0142/hash, push0143, preflight then explicit
-  approval per AGENTS for write. No new SD update needed for this diagnostic.
+  Next explicit0143 approval per AGENTS, guarded write/readback then manual
+  boot and nativeUSB capture with dl/t290-bluetooth/*collect*0143.py. No new SD update needed for this diagnostic.
   Helpers dl/t290-bluetooth/*0143*, WSL bluetooth0143{,-objects},qa0143.
 
 ###0142 freeze evidence saved before returning to Bluetooth

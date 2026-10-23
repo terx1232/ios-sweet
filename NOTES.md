@@ -3,8 +3,8 @@
 **SM-T290 active handoff:** read t290/NOTES.md first. User returned priority
 from0142 UI-freeze diagnosis to Bluetooth.0143 built: both SMD banks + heap
 inventory, INFO-only SCM/PIL API availability queries. Compile/link/pack PASS,
-QEMU60s PASS. No0143 backup/push/preflight/approval yet; asked returnAndroid,
-last ADB no device. Preserves0142 RTC/HID/memory fixes. Firmware not loaded,
+QEMU60s PASS. Android connected,0142 backup and0143 image/push/preflight PASS.
+Explicit0143 write approval pending. Preserves0142 RTC/HID/memory fixes. Firmware not loaded,
 Bluetooth not working yet. UI freeze evidence saved, exact cause unresolved.
 
 ## Agent handoff / active work (2026-10-15, latest)
