@@ -7,6 +7,8 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #include "gl_types.h"
 
 @interface NSObject (EAGLTest)
@@ -317,15 +319,59 @@ static int test_luminance_alpha(id ctx, struct Macro *m, GLuint targetFbo, unsig
     CALL(606, void, (void *, GLint, GLint), glyph, 0);
     const uint8_t quadrants[4][4] = {{255,0,0,255}, {0,255,0,255},
         {0,0,255,255}, {64,32,128,128}};
-    for (unsigned bgra = 0; bgra < 2; bgra++) {
-        IOSurfaceRef icon = IOSurfaceCreate((__bridge CFDictionaryRef)@{
+    for (unsigned c = 0; c < (getenv("SWEET_FAKE") ? 2 : 5); c++) {
+        BOOL external = c >= 2, readOnly = c == 4;
+        unsigned bgra = c == 1 || c == 3;
+        size_t sourceStride = c == 3 ? 512 : 480, sourceSize = sourceStride * 120;
+        size_t prefix = 19, page = (size_t)getpagesize();
+        size_t mappedSize = (prefix + sourceSize + 64 + page - 1) & ~(page - 1);
+        uint8_t *allocation = NULL, *original = NULL;
+        NSMutableDictionary *props = [@{
             (__bridge id)kIOSurfaceWidth: @120, (__bridge id)kIOSurfaceHeight: @120,
             (__bridge id)kIOSurfaceBytesPerElement: @4,
-            (__bridge id)kIOSurfaceBytesPerRow: @480,
+            (__bridge id)kIOSurfaceBytesPerRow: @(sourceStride),
             (__bridge id)kIOSurfacePixelFormat: @(bgra ? 0x42475241 : 0),
             (__bridge id)kIOSurfaceIsGlobal: @YES
-        });
+        } mutableCopy];
+        if (external) {
+            allocation = mmap(NULL, mappedSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+            if (allocation == MAP_FAILED) return 86;
+            memset(allocation, 0x5a, mappedSize);
+            original = allocation + prefix;        /* deliberately not page aligned */
+            for (unsigned y = 0; y < 120; y++) for (unsigned x = 0; x < 120; x++) {
+                const uint8_t *rgba = quadrants[(x >= 60) + 2 * (y >= 60)];
+                uint8_t *dest = original + y * sourceStride + x * 4;
+                dest[0] = rgba[bgra ? 2 : 0]; dest[1] = rgba[1];
+                dest[2] = rgba[bgra ? 0 : 2]; dest[3] = rgba[3];
+            }
+            props[@"IOSurfaceAddress"] = @((uintptr_t)original);
+            props[@"IOSurfaceAllocSize"] = @(sourceSize);
+            if (c == 2) {
+                NSMutableDictionary *bad = [props mutableCopy];
+                bad[@"IOSurfaceAllocSize"] = @(sourceSize - 1);
+                IOSurfaceRef invalid = IOSurfaceCreate((__bridge CFDictionaryRef)bad);
+                if (invalid) { CFRelease(invalid); return 92; }
+                printf("PASS client-memory undersized allocation rejected\n");
+            }
+            if (readOnly && mprotect(allocation, mappedSize, PROT_READ)) return 87;
+        }
+        IOSurfaceRef icon = IOSurfaceCreate((__bridge CFDictionaryRef)props);
         if (!icon) return 80;
+        size_t iconStride = IOSurfaceGetBytesPerRow(icon);
+        if (external) {
+            if (iconStride != sourceStride || IOSurfaceGetAllocSize(icon) != sourceSize ||
+                memcmp(IOSurfaceGetBaseAddress(icon), original, sourceSize)) return 88;
+            if (readOnly && !IOSurfaceLock(icon, 0, NULL)) return 89;
+            printf("PASS client-memory alias %s stride %zu size %zu, original pixels preserved\n",
+                readOnly ? "read-only" : "writable", iconStride, sourceSize);
+            if (readOnly) {
+                /* The surface's unique mapping and pin must survive removal
+                 * of the original user mapping, including the GPU upload. */
+                if (munmap(allocation, mappedSize)) return 93;
+                allocation = NULL;
+                original = IOSurfaceGetBaseAddress(icon);
+            }
+        }
         GLuint iconTex = 0;
         CALL(98, void, (void *, GLsizei, GLuint *), 1, &iconTex);
         CALL(5, void, (void *, GLenum, GLuint), 0x0de1, iconTex);
@@ -334,17 +380,17 @@ static int test_luminance_alpha(id ctx, struct Macro *m, GLuint targetFbo, unsig
         CALL(304, void, (void *, GLenum, GLenum, GLint), 0x0de1, 0x2800, 0x2600);
         CALL(304, void, (void *, GLenum, GLenum, GLint), 0x0de1, 0x2802, 0x812f);
         CALL(304, void, (void *, GLenum, GLenum, GLint), 0x0de1, 0x2803, 0x812f);
-        size_t iconStride = IOSurfaceGetBytesPerRow(icon);
-        for (unsigned round = 0; round < 2; round++) {
-            if (IOSurfaceLock(icon, 0, NULL)) return 82;
-            uint8_t *base = IOSurfaceGetBaseAddress(icon);
-            for (unsigned y = 0; y < 120; y++) for (unsigned x = 0; x < 120; x++) {
+        for (unsigned round = 0; round < (readOnly ? 1 : 2); round++) {
+            if (IOSurfaceLock(icon, readOnly ? 1 : 0, NULL)) return 82;
+            uint8_t *base = external ? original : IOSurfaceGetBaseAddress(icon);
+            if (!readOnly) for (unsigned y = 0; y < 120; y++) for (unsigned x = 0; x < 120; x++) {
                 const uint8_t *rgba = quadrants[((x >= 60) + 2 * (y >= 60) + round) % 4];
                 uint8_t *dest = base + y * iconStride + x * 4;
                 dest[0] = rgba[bgra ? 2 : 0]; dest[1] = rgba[1];
                 dest[2] = rgba[bgra ? 0 : 2]; dest[3] = rgba[3];
             }
-            if (IOSurfaceUnlock(icon, 0, NULL)) return 83;
+            if (external && memcmp(IOSurfaceGetBaseAddress(icon), original, sourceSize)) return 90;
+            if (IOSurfaceUnlock(icon, readOnly ? 1 : 0, NULL)) return 83;
             /* Keep the import bound across the second CPU update. */
             CALL(65, void, (void *, GLenum, GLint, GLsizei), 4, 0, 3);
             const GLint points[4][2] = {{16,16}, {48,16}, {24,40}, {40,40}};
@@ -353,16 +399,44 @@ static int test_luminance_alpha(id ctx, struct Macro *m, GLuint targetFbo, unsig
                 CALL(237, void, (void *, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, void *),
                     points[q][0], points[q][1], 1, 1, 0x1908, 0x1401, pixel);
                 GLenum err = CALL(102, GLenum, (void *));
-                printf("CPU icon %s stride %zu round %u quadrant %u RGBA %u,%u,%u,%u error %#x\n",
-                    bgra ? "BGRA" : "inferred-RGBA", iconStride, round, q,
+                printf("CPU icon %s external %u readonly %u stride %zu round %u quadrant %u RGBA %u,%u,%u,%u error %#x\n",
+                    bgra ? "BGRA" : "inferred-RGBA", external, readOnly, iconStride, round, q,
                     pixel[0], pixel[1], pixel[2], pixel[3], err);
                 if (err) return 84;
                 if (!getenv("SWEET_FAKE")) for (unsigned k = 0; k < 4; k++)
                     if (abs(pixel[k] - quadrants[(q + round) % 4][k]) > 2) return 85;
             }
         }
+        if (external && !readOnly) {
+            GLuint writeFbo = 0;
+            CALL(674, void, (void *, GLsizei, GLuint *), 1, &writeFbo);
+            CALL(672, void, (void *, GLenum, GLuint), 0x8d40, writeFbo);
+            CALL(677, void, (void *, GLenum, GLenum, GLenum, GLuint, GLint), 0x8d40, 0x8ce0, 0x0de1, iconTex, 0);
+            if (CALL(675, GLenum, (void *, GLenum), 0x8d40) != 0x8cd5) return 94;
+            CALL(12, void, (void *, GLfloat, GLfloat, GLfloat, GLfloat), 0.25f, 0.5f, 0.75f, 1.0f);
+            CALL(10, void, (void *, GLbitfield), 0x4000);
+            CALL(470, void, (void *, GLenum, GLuint), 0x1702, iconTex);
+            if (CALL(102, GLenum, (void *))) return 95;
+            for (unsigned y = 0; y < 120; y++) {
+                for (unsigned x = 0; x < 120; x++) {
+                    const uint8_t *q = original + y * sourceStride + x * 4;
+                    if (abs(q[0] - (bgra ? 191 : 64)) > 1 || abs(q[1] - 128) > 1 ||
+                        abs(q[2] - (bgra ? 64 : 191)) > 1 || q[3] != 255) return 96;
+                }
+                for (size_t j = 480; j < sourceStride; j++)
+                    if (original[y * sourceStride + j] != 0x5a) return 97;
+            }
+            printf("PASS client-memory GPU publish to original %s, all rows and padding\n", bgra ? "BGRA" : "RGBA");
+            CALL(672, void, (void *, GLenum, GLuint), 0x8d40, targetFbo);
+            CALL(673, void, (void *, GLsizei, const GLuint *), 1, &writeFbo);
+        }
         CALL(59, void, (void *, GLsizei, const GLuint *), 1, &iconTex);
         CFRelease(icon);
+        if (allocation) {
+            for (size_t j = 0; j < prefix; j++) if (allocation[j] != 0x5a) return 91;
+            for (size_t j = prefix + sourceSize; j < mappedSize; j++) if (allocation[j] != 0x5a) return 91;
+            munmap(allocation, mappedSize);
+        }
     }
     CALL(195, void, (void *, GLenum, GLint), 0x0cf5, 4);
     CALL(59, void, (void *, GLsizei, const GLuint *), 1, &upload);

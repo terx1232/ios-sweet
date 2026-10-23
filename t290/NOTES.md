@@ -6,6 +6,25 @@
 
 ## Active handoff 2026-10-23: missing UI, kernel 0135 installed
 
+- **0136 CLIENT-MEMORY IMPLEMENTATION (not installed).** User requested a
+  new version using the other-port findings; Android/root ADB connected.
+  Recovered ca-capture1 SD backups with -Result: done5/5, previous bridge,
+  marker and log saved in dl/ca-capture1/before. No pending unconsumed PUTs.
+  New patch0136 maps/pins IOSurfaceAddress, preserves caller pitch/size,
+  refuses undersized/unsupported ranges, maps a unique user alias, supports
+  read-only providers, balances prepare/complete and task lifetime. SweetGPU
+  selector9 identifies wrapped/read-only surfaces; direct GPU import of them
+  is refused. Bridge uses owned aligned backing, seed updates and row copies;
+  immutable sources cannot be render targets. No blanket format0 swizzle.
+  Actual layout function host test under ASan/UBSan PASS; local cross-compile
+  SweetSurface/SweetGPU/SweetFramebuffer PASS3/3. ARM64 bridge/test builds,
+  221 GLI signatures and code-signature checks PASS. Hardware regressions
+  add original-pixel preservation, unaligned480/512 rows, CPU updates,
+  read-only source surviving original unmap, GPU publish and padding guards.
+  They have NOT run on tablet. Full kernel/image build next; guard retained.
+  Requires new recovery, which must be prepared/verified before asking the
+  user to approve its partition write. Current device remains0135/capture1.
+
 - **OTHER-PORT REVIEW + LIVE CAPTURE (2026-10-23).** User asked to research
   other iOS phone drivers. Read pinned HackiOS userland906425b75e02 + kernel
   8e61187098f2, NativeAdreno b686b9054f57; see eagl/REFERENCES.md for URLs,

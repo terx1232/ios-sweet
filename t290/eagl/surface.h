@@ -12,6 +12,7 @@ void *IOSurfaceGetBaseAddress(IOSurfaceRef surface);
 void *IOSurfaceGetBaseAddressOfPlane(IOSurfaceRef surface, size_t plane);
 size_t IOSurfaceGetWidth(IOSurfaceRef surface);
 size_t IOSurfaceGetHeight(IOSurfaceRef surface);
+size_t IOSurfaceGetAllocSize(IOSurfaceRef surface);
 size_t IOSurfaceGetPlaneCount(IOSurfaceRef surface);
 size_t IOSurfaceGetBytesPerRow(IOSurfaceRef surface);
 size_t IOSurfaceGetBytesPerRowOfPlane(IOSurfaceRef surface, size_t plane);

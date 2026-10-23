@@ -25,6 +25,7 @@ mach_port_t IOServiceGetMatchingService(mach_port_t, CFDictionaryRef);
 kern_return_t IOServiceOpen(mach_port_t, mach_port_t, uint32_t, mach_port_t *);
 kern_return_t IOObjectRelease(mach_port_t);
 kern_return_t IOConnectCallStructMethod(mach_port_t, uint32_t, const void *, size_t, void *, size_t *);
+kern_return_t IOConnectCallScalarMethod(mach_port_t, uint32_t, const uint64_t *, uint32_t, uint64_t *, uint32_t *);
 
 static mach_port_t log_conn;
 static int log_fd = -1;
@@ -104,6 +105,17 @@ static void plog(const char *fmt, ...)
 void T290EAGLLog(const char *message);
 void T290EAGLLog(const char *message) { plog("eagltest: %s", message); }
 
+/* Kernel 0136 reports external-memory surfaces explicitly. Older kernels
+ * return Unsupported; keep their existing imports unchanged. */
+static unsigned surface_flags(IOSurfaceRef surface)
+{
+    uint64_t id = IOSurfaceGetID(surface), info = 0;
+    uint32_t count = 1;
+    if (!log_conn || IOConnectCallScalarMethod(log_conn, 9, &id, 1, &info, &count) ||
+        count != 1 || (info >> 32) != 0x54323930) return 0;
+    return (unsigned)info;
+}
+
 #if TARGET_OS_IPHONE
 /*
  * Kernel 0129 has no IOSurface WrapClientImage (selector 6). Its generic
@@ -151,6 +163,7 @@ static const struct { const void *replacement, *original; } surface_interpose[] 
     uint32_t pixelFormat;
     BOOL gpuDirty;
     BOOL scanout;                       /* full-screen: CA may present it */
+    BOOL readOnly;                      /* immutable CPU image provider */
 }
 - (void)upload;
 - (void)publish;
@@ -204,7 +217,7 @@ static inline void image_mark(T290SurfaceImage *img, size_t y0, size_t y1)
     size_t y0 = dirtyStart, y1 = dirtyEnd < rows ? dirtyEnd : rows;
     dirtyStart = SIZE_MAX;
     dirtyEnd = 0;
-    if (!backing || y0 >= y1) return;
+    if (!backing || readOnly || y0 >= y1) return;
     uint64_t t0 = mach_absolute_time();
     uint8_t *p = (uint8_t *)IOSurfaceGetBaseAddress(source) + sourceOffset;
     const uint8_t *q = IOSurfaceGetBaseAddress(backing);
@@ -447,8 +460,13 @@ static void t290_bind_framebuffer(GLenum target, GLuint name)
 }
 static void t290_framebuffer_texture(GLenum target, GLenum attachment, GLenum textarget, GLuint name, GLint level)
 {
-    gl.FramebufferTexture2D(target, attachment, textarget, name, level);
     T290Context *ctx = current_ctx();
+    T290SurfaceImage *image = ctx.sharegroup.textures[@(name)];
+    if (image && image->readOnly) {
+        plog("t290eagl: read-only source %u cannot be a render target", IOSurfaceGetID(image->source));
+        name = 0;                     /* incomplete FBO instead of writing immutable pixels */
+    }
+    gl.FramebufferTexture2D(target, attachment, textarget, name, level);
     if (target != 0x8ca8 && attachment == 0x8ce0) {
         ctx->_attachmentNames[@(ctx->_drawFbo)] = @(name);
         T290SurfaceImage *img = ctx.sharegroup.textures[@(name)];
@@ -930,6 +948,10 @@ static uintptr_t unsupported_private(void *ctx, ...)
     uintptr_t offset = planes ? (uintptr_t)IOSurfaceGetBaseAddressOfPlane(surface, plane) -
         (uintptr_t)IOSurfaceGetBaseAddress(surface) : 0;
     uint32_t fourcc = IOSurfaceGetPixelFormat(surface);
+    unsigned sourceFlags = surface_flags(surface);
+    /* A read-only source can be sampled through an owned GPU mirror, but
+     * publishing GPU writes back to it would fault. Reject target use. */
+    if ((sourceFlags & 2) && target == 0x8d41) return NO;
     if (!fourcc) {
         /* CA scratch buffers omit PixelFormat. The EAGL arguments carry
          * its format; attachImage's legacy default is RGBA/UNSIGNED_BYTE. */
@@ -967,12 +989,13 @@ static uintptr_t unsupported_private(void *ctx, ...)
         mirror = [T290SurfaceImage new];
         mirror->source = (IOSurfaceRef)CFRetain(surface);
         mirror->pixelFormat = fourcc;
+        mirror->readOnly = (sourceFlags & 2) != 0;
     }
     /* Freedreno's import pitch: 64 pixels (cpp 4: 256 bytes, LA08: 128). */
     size_t bpe = fourcc == 0x4c413038 || fourcc == 0x52473838 ? 2 :
         (fourcc == 0x4c303038 || fourcc == 0x41303038 || fourcc == 0x52303038) ? 1 :
         (fourcc == 0x42475241 || fourcc == 0x52474241) ? 4 : 0;
-    if (!mirror->image && bpe && (stride % (64 * bpe))) {
+    if (!mirror->image && bpe && ((stride % (64 * bpe)) || (sourceFlags & 1))) {
         size_t height = planes ? IOSurfaceGetHeightOfPlane(surface, plane) : IOSurfaceGetHeight(surface);
         if ((size_t)w > SIZE_MAX / bpe || (size_t)h > height ||
             (size_t)w * bpe > stride || !IOSurfaceGetBaseAddress(surface)) return NO;
@@ -991,8 +1014,9 @@ static uintptr_t unsupported_private(void *ctx, ...)
         if ((mirror->backingStride % (64 * bpe)) || !IOSurfaceGetBaseAddress(mirror->backing)) return NO;
         mirror->seed = IOSurfaceGetSeed(surface) + 1;    /* first upload below */
         static unsigned count;
-        if (count++ < 24) plog("t290eagl: padded surface %u %dx%d fmt %#x stride %zu -> %zu",
-            IOSurfaceGetID(surface), w, h, fourcc, stride, mirror->backingStride);
+        if (count++ < 24) plog("t290eagl: padded surface %u %dx%d fmt %#x stride %zu -> %zu external %u readonly %u",
+            IOSurfaceGetID(surface), w, h, fourcc, stride, mirror->backingStride,
+            !!(sourceFlags & 1), !!(sourceFlags & 2));
     }
     if (image_stale(mirror)) {
         if (_gpuWork) t290_wait();

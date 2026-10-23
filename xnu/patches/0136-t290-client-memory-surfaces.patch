@@ -1,0 +1,272 @@
+--- a/iokit/Kernel/arm/SweetSurface.h
++++ b/iokit/Kernel/arm/SweetSurface.h
+@@ -39,6 +39,10 @@
+ 	IOOptionBits              mapCache;     /* cache mode for user mappings */
+ 	IOBufferMemoryDescriptor *state;        /* shared state page, read-only for users */
+ 	IOMemoryMap              *kernelMap;    /* lazily created for kernel copies */
++	bool                      clientMemory; /* IOSurfaceAddress: pinned caller pages */
++	bool                      clientReadOnly;
++	bool                      memoryPrepared;
++	task_t                    clientTask;  /* source map lives with its descriptor */
+ 
+ 	bool init() APPLE_KEXT_OVERRIDE { return OSObject::init(); }
+ 	void free() APPLE_KEXT_OVERRIDE;
+--- a/iokit/Kernel/arm/SweetSurface.cpp
++++ b/iokit/Kernel/arm/SweetSurface.cpp
+@@ -84,7 +84,13 @@
+ 		OSAddAtomic64(-(SInt64)allocSize, (volatile SInt64 *)&sweet_surface_wired);
+ 	}
+ 	OSSafeReleaseNULL(kernelMap);
++	if (memoryPrepared && memory != NULL) {
++		memory->complete();
++	}
+ 	OSSafeReleaseNULL(memory);
++	if (clientTask != TASK_NULL) {
++		task_deallocate(clientTask);
++	}
+ 	OSSafeReleaseNULL(state);
+ 	OSObject::free();
+ }
+@@ -98,7 +104,8 @@
+ 	}
+ 	IOLockLock(sweet_surface_lock);
+ 	if (kernelMap == NULL && memory != NULL) {
+-		kernelMap = memory->map(kIOMapWriteCombineCache);
++		kernelMap = memory->map(clientMemory ? kIOMapDefaultCache | kIOMapReadOnly :
++		    kIOMapWriteCombineCache);
+ 	}
+ 	IOLockUnlock(sweet_surface_lock);
+ 	return kernelMap != NULL ? (uintptr_t)kernelMap->getVirtualAddress() : 0;
+@@ -278,7 +285,7 @@
+ 
+ /* Geometry from the creation properties (IOSurface.h keys). */
+ static IOReturn
+-sweet_surface_layout(SweetSurface *s, OSDictionary *props)
++sweet_surface_layout(SweetSurface *s, OSDictionary *props, bool wrapped)
+ {
+ 	uint64_t end;
+ 
+@@ -295,6 +302,7 @@
+ 		return kIOReturnBadArgument;
+ 	}
+ 	s->bytesPerRow = sweet_dict_u32(props, "IOSurfaceBytesPerRow",
++	    wrapped ? sweet_div_up(s->width, s->elementWidth) * s->bytesPerElement :
+ 	    sweet_row_bytes(s->width, s->elementWidth, s->bytesPerElement));
+ 	if (s->bytesPerRow < (uint64_t)sweet_div_up(s->width, s->elementWidth) * s->bytesPerElement) {
+ 		return kIOReturnBadArgument;
+@@ -306,7 +314,7 @@
+ 	 * up like the default (Apple's IOSurface also enforces its alignment):
+ 	 * every surface is then GPU-importable without a copy.
+ 	 */
+-	if (planes == NULL && s->elementWidth == 1 && s->elementHeight == 1) {
++	if (!wrapped && planes == NULL && s->elementWidth == 1 && s->elementHeight == 1) {
+ 		s->bytesPerRow = (uint32_t)(((uint64_t)s->bytesPerRow + SWEET_SURFACE_ROW_ALIGN - 1) &
+ 		    ~(uint64_t)(SWEET_SURFACE_ROW_ALIGN - 1));
+ 	}
+@@ -334,9 +342,13 @@
+ 				return kIOReturnBadArgument;
+ 			}
+ 			p->bytesPerRow = sweet_dict_u32(pd, "IOSurfacePlaneBytesPerRow",
++			    wrapped ? sweet_div_up(p->width, p->elementWidth) * p->bytesPerElement :
+ 			    sweet_row_bytes(p->width, p->elementWidth, p->bytesPerElement));
++			if (p->bytesPerRow < (uint64_t)sweet_div_up(p->width, p->elementWidth) * p->bytesPerElement) {
++				return kIOReturnBadArgument;
++			}
+ 			/* same for planes whose layout we place (no explicit offset/size) */
+-			if (pd->getObject("IOSurfacePlaneOffset") == NULL &&
++			if (!wrapped && pd->getObject("IOSurfacePlaneOffset") == NULL &&
+ 			    pd->getObject("IOSurfacePlaneSize") == NULL &&
+ 			    p->elementWidth == 1 && p->elementHeight == 1) {
+ 				p->bytesPerRow = (uint32_t)(((uint64_t)p->bytesPerRow + SWEET_SURFACE_ROW_ALIGN - 1) &
+@@ -345,7 +357,11 @@
+ 			p->offset = sweet_dict_u32(pd, "IOSurfacePlaneOffset", (uint32_t)next);
+ 			p->size = sweet_dict_u32(pd, "IOSurfacePlaneSize",
+ 			    p->bytesPerRow * sweet_div_up(p->height, p->elementHeight));
+-			next = round_page((uint64_t)p->offset + p->size);
++			if (p->size < (uint64_t)p->bytesPerRow * sweet_div_up(p->height, p->elementHeight)) {
++				return kIOReturnBadArgument;
++			}
++			next = (uint64_t)p->offset + p->size;
++			if (!wrapped) next = round_page(next);
+ 			if ((uint64_t)p->offset + p->size > end) {
+ 				end = (uint64_t)p->offset + p->size;
+ 			}
+@@ -354,10 +370,20 @@
+ 	}
+ 
+ 	uint64_t alloc = sweet_dict_u32(props, "IOSurfaceAllocSize", 0);
+-	if (alloc < end) {
+-		alloc = end;
+-	}
+-	alloc = round_page(alloc);
++	if (wrapped) {
++		/* Never extend a caller-owned allocation or alter its row layout. */
++		if (props->getObject("IOSurfaceAllocSize") == NULL) {
++			alloc = end;
++		}
++		if (alloc < end) {
++			return kIOReturnBadArgument;
++		}
++	} else {
++		if (alloc < end) {
++			alloc = end;
++		}
++		alloc = round_page(alloc);
++	}
+ 	if (alloc == 0 || alloc > SWEET_SURFACE_MAX_ALLOC) {
+ 		return kIOReturnNoMemory;
+ 	}
+@@ -544,7 +570,8 @@
+ 	s->retain();
+ 	ref->surface = s;
+ 	ref->count = 1;
+-	ref->data = s->memory->createMappingInTask(fTask, 0, kIOMapAnywhere | s->mapCache);
++	ref->data = s->memory->createMappingInTask(fTask, 0, kIOMapAnywhere | s->mapCache |
++	    (s->clientMemory ? kIOMapUnique : 0));
+ 	ref->state = s->state->createMappingInTask(fTask, 0, kIOMapAnywhere | kIOMapReadOnly);
+ 	if (ref->data == NULL || ref->state == NULL) {
+ 		ref->release();
+@@ -700,8 +727,39 @@
+ 		return kIOReturnNoMemory;
+ 	}
+ 	s->parentID = args->scalarInputCount > 0 ? (uint32_t)args->scalarInput[0] : 0;
+-	ret = sweet_surface_layout(s, props);
+-	if (ret == kIOReturnSuccess) {
++	OSObject *addressProp = props->getObject("IOSurfaceAddress");
++	OSNumber *address = OSDynamicCast(OSNumber, addressProp);
++	s->clientMemory = address != NULL;
++	ret = sweet_surface_layout(s, props, s->clientMemory);
++	if ((addressProp != NULL && address == NULL) ||
++	    props->getObject("IOSurfaceAddressRanges") != NULL) {
++		ret = kIOReturnUnsupported;
++	}
++	if (ret == kIOReturnSuccess && s->clientMemory) {
++		uint64_t start = address->unsigned64BitValue();
++		if (start == 0 || start + s->allocSize < start) {
++			ret = kIOReturnBadArgument;
++		} else {
++			/* Prefer writable pages; immutable image providers are valid too.
++			 * prepare pins the original pages until the last surface user leaves.
++			 * Do not clear them: they already contain the supplied picture. */
++			s->clientTask = fTask;
++			task_reference(s->clientTask);
++			ret = kIOReturnNoMemory;
++			for (unsigned attempt = 0; attempt < 2 && ret != kIOReturnSuccess; attempt++) {
++				OSSafeReleaseNULL(s->memory);
++				s->clientReadOnly = attempt != 0;
++				s->memory = IOMemoryDescriptor::withAddressRange(start, s->allocSize,
++				    s->clientReadOnly ? kIODirectionOut : kIODirectionInOut, fTask);
++				ret = s->memory != NULL ? s->memory->prepare() : kIOReturnNoMemory;
++			}
++			s->memoryPrepared = ret == kIOReturnSuccess;
++			s->mapCache = kIOMapDefaultCache | (s->clientReadOnly ? kIOMapReadOnly : 0);
++			if (ret == kIOReturnSuccess && s->kernelAddress() == 0) {
++				ret = kIOReturnVMError;
++			}
++		}
++	} else if (ret == kIOReturnSuccess) {
+ 		IOBufferMemoryDescriptor *mem = NULL;
+ 		if ((uint64_t)OSAddAtomic64(s->allocSize, (volatile SInt64 *)&sweet_surface_wired) +
+ 		    s->allocSize <= SWEET_SURFACE_WIRED_MAX) {
+@@ -715,10 +773,10 @@
+ 			bzero(mem->getBytesNoCopy(), s->allocSize);
+ 			s->memory = mem;
+ 			s->mapCache = kIOMapDefaultCache;
+-			if (!sweet_surface_publish(s)) {
+-				ret = kIOReturnNoResources;
+-			}
+-		}
++		}
++	}
++	if (ret == kIOReturnSuccess && !sweet_surface_publish(s)) {
++		ret = kIOReturnNoResources;
+ 	}
+ 	if (ret != kIOReturnSuccess || sweet_surface_creates_logged < 64) {
+ 		char name[32];
+@@ -727,6 +785,14 @@
+ 		IOLog("SWEET SURF: %s create id %u %ux%u fmt 0x%x bpe %u bpr %u planes %u size %u keys %u -> 0x%x\n",
+ 		    name, s->id, s->width, s->height, s->pixelFormat, s->bytesPerElement,
+ 		    s->bytesPerRow, s->planeCount, s->allocSize, props->getCount(), ret);
++	}
++	if (s->clientMemory) {
++		static uint32_t wrappedLogged;
++		if (OSIncrementAtomic((volatile SInt32 *)&wrappedLogged) <= 64) {
++			IOLog("SWEET SURF: client-memory id %u %s bpr %u size %u -> 0x%x\n",
++			    s->id, s->clientReadOnly ? "read-only" : "writable",
++			    s->bytesPerRow, s->allocSize, ret);
++		}
+ 	}
+ 	props->release();
+ 	if (ret != kIOReturnSuccess) {
+@@ -847,14 +913,15 @@
+ }
+ 
+ IOReturn
+-IOSurfaceRootUserClient::trapLock(void *id, __unused void *options, void *seedOut,
++IOSurfaceRootUserClient::trapLock(void *id, void *options, void *seedOut,
+     void *, void *, void *)
+ {
+ 	SweetSurface *s = sweet_surface_held(fLock, fRefs, (uint32_t)(uintptr_t)id);
+ 	if (s == NULL) {
+ 		return kIOReturnNotFound;
+ 	}
+-	IOReturn ret = sweet_surface_seed_out(s, seedOut, false);
++	IOReturn ret = s->clientReadOnly && !((uintptr_t)options & kIOSurfaceLockReadOnly) ?
++	    kIOReturnNotWritable : sweet_surface_seed_out(s, seedOut, false);
+ 	s->release();
+ 	return ret;
+ }
+@@ -867,7 +934,8 @@
+ 	if (s == NULL) {
+ 		return kIOReturnNotFound;
+ 	}
+-	IOReturn ret = sweet_surface_seed_out(s, seedOut,
++	IOReturn ret = s->clientReadOnly && !((uintptr_t)options & kIOSurfaceLockReadOnly) ?
++	    kIOReturnNotWritable : sweet_surface_seed_out(s, seedOut,
+ 	    !((uintptr_t)options & kIOSurfaceLockReadOnly));
+ 	s->release();
+ 	return ret;
+--- a/iokit/Kernel/arm/SweetGPU.cpp
++++ b/iokit/Kernel/arm/SweetGPU.cpp
+@@ -17,6 +17,9 @@
+  *              + invalidate before the submit, invalidate again once a Wait
+  *              has seen that submit complete (instead of every imported
+  *              surface around every submit and wait: ~megabytes each time)
++ *   9 SurfaceInfo [IOSurface id] -> [0x5432393000000000 | flags]
++ *              bit0: caller memory, bit1: read-only. Bridge uses a padded
++ *              owned GPU surface for external, possibly unaligned pages.
+  * IOConnectMapMemory64(conn, handle, ...) maps a buffer into the task.
+  * Imported surfaces keep their CPU caching: their D-cache lines are cleaned
+  * and invalidated to the point of coherency before every submit and after
+@@ -294,6 +297,12 @@
+ 	if (s == NULL) {
+ 		return kIOReturnNotFound;
+ 	}
++	if (s->clientMemory) {
++		/* The bridge copies these through an owned, aligned GPU backing.
++		 * Do not map unaligned or read-only client pages into the GPU. */
++		s->release();
++		return kIOReturnUnsupported;
++	}
+ 	IOMemoryDescriptor *md = s->memory;
+ 	uint64_t size = ((uint64_t)s->allocSize + 0xfff) & ~0xfffULL;
+ 	uintptr_t kva = 0;
+@@ -464,6 +473,18 @@
+ 		ret = nin >= 1 ? import_surface((uint32_t)in[0], out) : kIOReturnBadArgument;
+ 		outCount = 3;
+ 		break;
++	case 9: {
++		SweetSurface *s = nin >= 1 ? sweet_surface_copy((uint32_t)in[0]) : NULL;
++		if (s == NULL) {
++			ret = kIOReturnBadArgument;
++			break;
++		}
++		out[0] = 0x5432393000000000ULL | (s->clientMemory ? 1 : 0) |
++		    (s->clientReadOnly ? 2 : 0);
++		outCount = 1;
++		s->release();
++		break;
++	}
+ 	case 8: {
+ 		uint32_t len = args->structureInputSize;
+ 		if (args->structureInput == NULL || (len & 3) || len > 4 * MAX_PREPARED) {

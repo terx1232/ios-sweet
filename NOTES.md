@@ -1,6 +1,10 @@
 # iOS 16 on sweet (Redmi Note 10 Pro, SM7150) - working notes
 
 **Active SM-T290 work (2026-10-23):** see `t290/NOTES.md` and `t290/GPU.md`.
+Patch0136 and matching EAGL bridge now implement IOSurfaceAddress with pinned
+client memory and an aligned GPU backing. Local layout/compile/ABI/signature
+checks PASS; hardware pixel tests and full kernel build still pending.
+No new recovery written. Android connected; prior SD backup GETs recovered.
 Recovery 0135 installed, GPU compositor active, UI content widely missing.
 User priority is content first, FPS later. Real CA shader/texture trace and
 complete home-screen USB screenshot saved. CA-like constant/u8 vertex color,
