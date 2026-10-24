@@ -4,6 +4,26 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff 2026-10-24 (afternoon): ui0146c finding, ui0146d built
+
+- ui0146c booted (SD done 3/3; capture ios-t290/usb-captures/ui0146c/
+  boot-20261024-104336-ui0146c). backboardd queried GL strings 0x1f03,
+  **0x8a1e (Apple private extensions; bridge returned "")**, 0x1f01.
+  CA function_supported: only **function 40 -> 0**; 3,5,7,14,17,18,26,32-36 -> 1.
+  No EAGL respondsToSelector misses. No planar IOSurface binds at all.
+- QuartzCore's extension checklist (DSC strings next to CA_DISABLE_WORKAROUNDS/
+  CA_MAX_TEXTURE_UNITS): GL_APPLE_fence, texture_filter_cubic,
+  **texture_ycbcr_basic_formats**, ycbcr_extended_formats, texture_xr,
+  tile_order_rot, EXT_shader_framebuffer_fetch, ... Inference (not proven):
+  function 40 = YCbCr path, disabled without ycbcr_basic_formats -> wallpaper
+  (SpringBoard 3 x 1536x1536 '420f') never drawn -> black + dark vibrant text.
+  DSC pieces extracted (with some 7z data errors) to WSL ~/dsc (iNode files).
+- ui0146d: 0x8a1e now returns "GL_APPLE_texture_ycbcr_basic_formats" only.
+  Planar binds: R8/RG8/LA8 per plane (existing), plus fallback when CA binds a
+  whole 420f/420v surface as RGB(A): CPU BT.601 conversion into an RGBA
+  mirror on seed change (read-only). yuvcheck.c PASS (dl/ui0146d).
+  WSL build build-ui0146d PASS, dl/ui0146d. NOT staged yet (tablet in iPadOS).
+
 ## Active handoff 2026-10-24 (noon): ui0146b result, ui0146c diagnostics built
 
 - ui0146b booted (SD request done 3/3; capture ios-t290/usb-captures/ui0146b/

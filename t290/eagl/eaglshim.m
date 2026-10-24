@@ -175,6 +175,7 @@ static const struct { const void *replacement, *original; } surface_interpose[] 
     BOOL gpuDirty;
     BOOL scanout;                       /* full-screen: CA may present it */
     BOOL readOnly;                      /* immutable CPU image provider */
+    uint8_t yuv;                        /* 1: 420f, 2: 420v converted to RGBA */
 }
 - (void)upload;
 - (void)publish;
@@ -214,7 +215,30 @@ static inline void image_mark(T290SurfaceImage *img, size_t y0, size_t y1)
     const uint8_t *p = (const uint8_t *)IOSurfaceGetBaseAddress(source) + sourceOffset;
     uint8_t *q = IOSurfaceGetBaseAddress(backing);
     seed = IOSurfaceGetSeed(source);
-    for (size_t y = 0; y < rows; y++)
+    if (yuv) {
+        /* Biplanar 4:2:0 (Y, interleaved CbCr) -> RGBA, BT.601; '420v' is
+         * video range. CA binds the wallpaper this way as one RGB texture. */
+        const uint8_t *py = IOSurfaceGetBaseAddressOfPlane(source, 0);
+        const uint8_t *pc = IOSurfaceGetBaseAddressOfPlane(source, 1);
+        size_t sy = IOSurfaceGetBytesPerRowOfPlane(source, 0);
+        size_t sc = IOSurfaceGetBytesPerRowOfPlane(source, 1);
+        size_t cols = rowBytes / 4;
+        int video = yuv == 2;
+        for (size_t y = 0; y < rows; y++) {
+            const uint8_t *ly = py + y * sy, *lc = pc + (y / 2) * sc;
+            uint8_t *o = q + y * backingStride;
+            for (size_t x = 0; x < cols; x++, o += 4) {
+                int Y = ly[x], U = lc[(x & ~(size_t)1)] - 128, V = lc[(x & ~(size_t)1) + 1] - 128;
+                if (video) { Y = (Y - 16) * 298 >> 8; U = U * 291 >> 8; V = V * 291 >> 8; }
+                int r = Y + ((359 * V) >> 8), g = Y - ((88 * U + 183 * V) >> 8), b = Y + ((454 * U) >> 8);
+                o[0] = r < 0 ? 0 : r > 255 ? 255 : r;
+                o[1] = g < 0 ? 0 : g > 255 ? 255 : g;
+                o[2] = b < 0 ? 0 : b > 255 ? 255 : b;
+                o[3] = 255;
+            }
+        }
+    }
+    else for (size_t y = 0; y < rows; y++)
         memcpy(q + y * backingStride, p + y * sourceStride, rowBytes);
     stats.uploadBytes += rows * rowBytes;
     stats.uploads++;
@@ -372,7 +396,10 @@ static const GLubyte *t290_get_string(GLenum name)
             break;
         }
     }
-    if (name == 0x8a1e) return (const GLubyte *)"";
+    /* Apple's private extension string. Only what this bridge implements:
+     * YCbCr IOSurfaces (QuartzCore enables its YCbCr path, e.g. the
+     * wallpaper, from this name); other Apple-only state stays hidden. */
+    if (name == 0x8a1e) return (const GLubyte *)"GL_APPLE_texture_ycbcr_basic_formats";
     const GLubyte *p = gl.GetString(name);
     return p ? p : (const GLubyte *)"";
 }
@@ -1071,6 +1098,7 @@ static uintptr_t unsupported_private(void *ctx, ...)
     t290_make_current((__bridge void *)self);
     size_t planes = IOSurfaceGetPlaneCount(surface);
     if ((planes && plane >= planes) || (!planes && plane)) return NO;
+    uint8_t yuvMode = 0;
     size_t stride = planes ? IOSurfaceGetBytesPerRowOfPlane(surface, plane) : IOSurfaceGetBytesPerRow(surface);
     uintptr_t offset = planes ? (uintptr_t)IOSurfaceGetBaseAddressOfPlane(surface, plane) -
         (uintptr_t)IOSurfaceGetBaseAddress(surface) : 0;
@@ -1104,6 +1132,12 @@ static uintptr_t unsupported_private(void *ctx, ...)
         uint32_t pf = format == 0x1903 || format == 0x1909 ? 0x52303038 :   /* R8 */
             format == 0x8227 ? 0x52473838 :                                  /* RG8 */
             format == 0x190a ? 0x4c413038 : 0;                               /* LA8 */
+        /* the whole 4:2:0 surface as one RGB(A) texture: converted mirror */
+        if (!pf && planes == 2 && plane == 0 && (fourcc == 0x34323066 || fourcc == 0x34323076) &&
+            (format == 0x1908 || format == 0x80e1 || format == 0x1907)) {
+            yuvMode = fourcc == 0x34323066 ? 1 : 2;
+            pf = 0x52474241;
+        }
         static unsigned n;
         if (n++ < 16 || !pf)
             plog("t290eagl: plane %u of surface %u fmt %#x %dx%d stride %zu offset %zu: GL internal %#x "
@@ -1123,16 +1157,20 @@ static uintptr_t unsupported_private(void *ctx, ...)
         mirror = [T290SurfaceImage new];
         mirror->source = (IOSurfaceRef)CFRetain(surface);
         mirror->pixelFormat = fourcc;
-        mirror->readOnly = (sourceFlags & 2) != 0;
+        mirror->readOnly = (sourceFlags & 2) != 0 || yuvMode;
+        mirror->yuv = yuvMode;
     }
     /* Freedreno's import pitch: 64 pixels (cpp 4: 256 bytes, LA08: 128). */
     size_t bpe = fourcc == 0x4c413038 || fourcc == 0x52473838 ? 2 :
         (fourcc == 0x4c303038 || fourcc == 0x41303038 || fourcc == 0x52303038) ? 1 :
         (fourcc == 0x42475241 || fourcc == 0x52474241) ? 4 : 0;
-    if (!mirror->image && bpe && ((stride % (64 * bpe)) || (sourceFlags & 1))) {
+    if (!mirror->image && bpe && ((stride % (64 * bpe)) || (sourceFlags & 1) || mirror->yuv)) {
         size_t height = planes ? IOSurfaceGetHeightOfPlane(surface, plane) : IOSurfaceGetHeight(surface);
         if ((size_t)w > SIZE_MAX / bpe || (size_t)h > height ||
-            (size_t)w * bpe > stride || !IOSurfaceGetBaseAddress(surface)) return NO;
+            (!mirror->yuv && (size_t)w * bpe > stride) || !IOSurfaceGetBaseAddress(surface)) return NO;
+        if (mirror->yuv && ((size_t)w > IOSurfaceGetBytesPerRowOfPlane(surface, 0) ||
+            (size_t)w > IOSurfaceGetBytesPerRowOfPlane(surface, 1) ||
+            (size_t)(h + 1) / 2 > IOSurfaceGetHeightOfPlane(surface, 1))) return NO;
         mirror->rows = h;
         mirror->rowBytes = (size_t)w * bpe;
         mirror->sourceStride = stride;
