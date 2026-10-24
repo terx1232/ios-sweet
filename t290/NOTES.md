@@ -19,8 +19,11 @@
   results once per function/result; GL strings queried; EAGL respondsToSelector
   misses; every IOSurface bind with non-RGBA/BGRA fourcc or planes.
   WSL build /home/kirill/t290-toolchain/build-ui0146c PASS, dl/ui0146c.
-  NOT staged yet (tablet was in iPadOS). Next: Android -> stage put bridge,
-  boot, run dl/ui0146c/collect-live.py.
+  ui0146b request result: done 3/3 (old log saved dl/ui0146b/before).
+  **ui0146c STAGED** 3 ops (get log+bridge to dl/ui0146c/before, put bridge),
+  SD readback SHA256 a5c0a640... MATCH. Next: boot with USB, run
+  dl/ui0146c/collect-live.py, grep "supported 0", "EAGL probe", "GL string",
+  "IOSurface ... fmt".
 - Apps: Camera.app is in /Applications (hidden: no camera capability);
   TV, Music, Notes, Calendar, Mail, Maps, Clock, Books... are only in
   /private/var/staged_system_apps (never installed because Setup is skipped).
