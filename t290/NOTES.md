@@ -4,6 +4,20 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff 2026-10-24 (night): Metal phase 1 done (airgl translator)
+
+- `t290/metal/airgl/` (see its README): AIR -> GLSL ES 3.10 translator,
+  reference interpreter, difftests. 136/141 QuartzCore shaders compile;
+  difftests vertex 39/39, fragment 91/93, specialized fixed_frag 24/24.
+- Key finding: uber shaders need per-pipeline LLVM specialization
+  (fixed_frag 1 MB -> 7-51 KB); fc_generic=1 path needs config-buffer
+  readback in the driver. Next decision: on-device LLVM vs offline cache.
+- WSL working dirs: ~/air (split modules, opt/, glsl/, spec/), ~/dsc
+  (shared-cache pieces). Running difftest on unspecialized fixed_frag
+  OOM-kills WSL (needs `wsl --shutdown`); difftest.py now skips it.
+- Tablet still runs GL bridge ui0146d with capture marker '2' (slow UI):
+  stage trace "0" before normal use.
+
 ## Active handoff 2026-10-24 (evening): user chose a Metal driver
 
 - User chose option 4 (own Metal driver) over finishing CA's GLES path.

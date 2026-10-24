@@ -32,6 +32,15 @@ class Smp:
     pass
 
 
+def safe_pow(x, y):
+    if x == 0: return 0.0 if y > 0 else float('inf')
+    if x < 0: return float('nan')
+    try:
+        return x ** y
+    except OverflowError:
+        return float('inf')
+
+
 class Ret(Exception):
     def __init__(self, v):
         self.v = v
@@ -323,9 +332,9 @@ class Interp:
         raise ValueError(op)
 
     def bitcast(self, x, src, t):
-        buf = bytearray(max(1, llparse.size_of(src)))
-        self.wr(Ptr(Mem(buf, 'bc')), x, src)
-        return self.rd(Ptr(Mem(buf, 'bc')), t)
+        mem = Mem(bytearray(max(1, llparse.size_of(src))), 'bc')
+        self.wr(Ptr(mem), x, src)
+        return self.rd(Ptr(mem), t)
 
     # ---------------- intrinsics
     def call(self, i, env):
@@ -357,7 +366,7 @@ class Interp:
         if fn == 'saturate': return vec(lambda x: min(max(x, 0.0), 1.0), args[0])
         if fn == 'mix': return vec(lambda x, y, t: x + (y - x) * t, args[0], b(args[1]), b(args[2]))
         if fn == 'fma': return vec(lambda x, y, z: x * y + z, args[0], b(args[1]), b(args[2]))
-        if fn in ('pow', 'powr'): return vec(lambda x, y: x ** y if x > 0 else (0.0 if x == 0 and y > 0 else float('nan')), args[0], b(args[1]))
+        if fn in ('pow', 'powr'): return vec(safe_pow, args[0], b(args[1]))
         if fn == 'atan2': return math.atan2(args[0], args[1])
         if fn == 'dot': return sum(p * q for p, q in zip(args[0], args[1]))
         if fn == 'all': return int(all(args[0]))
@@ -377,8 +386,8 @@ class Interp:
                         return float(x)
                     return x
                 if te.bits == 1: return int(x != 0)
-                if dk == 'u': return int(max(x, 0)) & ((1 << te.bits) - 1) if x == x else 0
-                return int(x) & ((1 << te.bits) - 1) if x == x else 0
+                if dk == 'u': return int(max(x, 0)) & ((1 << te.bits) - 1) if x == x and abs(x) != float('inf') else 0
+                return int(x) & ((1 << te.bits) - 1) if x == x and abs(x) != float('inf') else 0
             return vec(conv, args[0])
         if name.startswith('air.unpack.unorm4x8'):
             return [((args[0] >> (8 * k)) & 255) / 255.0 for k in range(4)]
@@ -392,6 +401,7 @@ class Interp:
         if name.startswith('air.sample_texture_3d'):
             tex, c = args[0], args[2]
             if not isinstance(tex, Tex): return [[0.0] * 4, 0]
+            if not all(math.isfinite(e) for e in c[:3]): return [[float('nan')] * 4, 0]
             ix = [min(max(math.floor(c[k] * n), 0), n - 1) for k, n in enumerate((tex.w, tex.h, tex.d))]
             return [list(tex.texels[ix[2]][ix[1]][ix[0]]), 0]
         if name.startswith('air.read_texture_2d'):
@@ -409,5 +419,6 @@ class Interp:
 
     def sample(self, tex, coord):
         if not isinstance(tex, Tex): return [0.0] * 4
+        if not all(math.isfinite(c) for c in coord[:2]): return [float('nan')] * 4   # undefined in Metal too
         x = math.floor(coord[0] * tex.w); y = math.floor(coord[1] * tex.h)
         return self.texel(tex, x, y)

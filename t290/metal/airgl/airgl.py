@@ -83,6 +83,7 @@ def ilit(x, bits=32):
     x &= (1 << 32) - 1 if bits >= 32 else (1 << bits) - 1
     if bits == 1: return 'true' if x else 'false'
     if x >= 1 << 31: x -= 1 << 32
+    if x == -(1 << 31): return 'int(0x80000000u)'      # -2147483648 is not a valid GLSL literal
     return str(x) if x >= 0 else '(%d)' % x
 
 
