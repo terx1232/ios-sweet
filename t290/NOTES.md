@@ -4,6 +4,33 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff 2026-10-24 (late night, 3): **metal1 mtltest PASS on the tablet**
+
+- SD request done 6/6. Device launchd.plist before the change was
+  byte-identical to dl/eagl-bridge3/launchd.guarded.plist (SHA d0aba614...).
+- Kernel log (pstore saved ios-t290/logs/metal1-return/{console,dmesg}.bin):
+  `t290mtltest exit 0 (PASS)`, then eagltest exit 0, t290launch PASS,
+  backboardd on the GLES bridge as before. So on real FD504: T290Metal
+  device init via principal class, BGRA8/R8 clears, upload/readback,
+  blits, IOSurface render target (direct import), CA std_vert0_lpf +
+  attachment_clear_frag_lpf quadrant draw (orientation correct), and
+  fixed_vert_lph_spc + fixed_frag_lph_cpf specialized + linked on device.
+  The CPU-copy IOSurface path was NOT exercised (kernel gave bpr 512 for
+  the 100 px surface, so it imported directly).
+- Device GL: OpenGL ES 3.1 Mesa 24.2.8, UBO align 64, EXT_texture_buffer
+  (align 64), 48 texture units. MTLFunctionConstantValues is really
+  MTLFunctionConstantValuesInternal (hook installed there).
+- On-device airglc times: std_vert0 1020 ms (first call, includes LLVM
+  setup), attachment_clear 7 ms, fixed_vert 144 ms, **fixed_frag 3551 ms**:
+  too slow for CA's many pipelines -> persistent GLSL cache (disk) and
+  async/precompiled sets needed before switching backboardd to Metal.
+- The recount.c panic in console.bin is DumpPanic's report of the previous
+  (ui0146d) boot; dmesg of this boot has none.
+- Marker /private/var/tmp/t290mtltest.done now exists (test runs once).
+- Next (phase 4): kernel IOAcceleratorES node (MetalPluginName T290Metal),
+  xfer mkdir op so the bundle can live in /System/Library/Extensions/,
+  shader disk cache; then backboardd on Metal with the GLES fallback.
+
 ## Active handoff 2026-10-24 (late night, 2): metal1 STAGED on the SD card
 
 - Previous request (ui0146d) was done 4/4; its log/bridge went to
