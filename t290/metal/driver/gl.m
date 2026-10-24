@@ -53,6 +53,14 @@ void t290_log(const char *fmt, ...)
 __attribute__((constructor)) static void t290_loaded(void)
 {
 	t290_log("T290Metal: bundle loaded into %s pid %d", getprogname(), getpid());
+	/* Metal's plugin check: the device class must adopt its SPI protocols */
+	Class c = objc_getClass("T290MetalDevice");
+	const char *protos[] = {"MTLDeviceSPI", "MTLDevice", "MTLDeviceSPIInternal"};
+	for (size_t i = 0; c && i < sizeof(protos) / sizeof(protos[0]); i++) {
+		Protocol *p = objc_getProtocol(protos[i]);
+		BOOL added = p && class_addProtocol(c, p);
+		t290_log("T290Metal: protocol %s %s", protos[i], !p ? "not in runtime" : added ? "added" : "already adopted");
+	}
 }
 
 NSError *t290_error(NSString *fmt, ...)

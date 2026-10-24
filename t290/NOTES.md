@@ -4,6 +4,24 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff 2026-10-24 (night, 6): bundle IS loaded by Metal, device class rejected
+
+- metal3 done 6/6; pstore ios-t290/logs/metal3-return. Probe: node class
+  T290Accelerator, MetalPluginName T290Metal, MetalPluginClassName
+  T290MetalDevice; MTLCreateSystemDefaultDevice -> nil, MTLCopyAllDevices 0,
+  but the bundle image IS loaded after the call and the class is present.
+  "bundle loaded into" also in backboardd, SpringBoard, mediaserverd,
+  SBRendererService - never "device init". So Metal checks the class and
+  drops it before -initWithAcceleratorPort:options:. Metal/IOGPU strings
+  near the plugin keys: MTLDeviceSPI, conformsToProtocol:, isSubclassOfClass:,
+  IOGPUMetalDevice, _MTLDevice, initWithAcceleratorPort: (1 arg),
+  initWithAcceleratorPort:simultaneousInstances:.
+- metal4 STAGED 2 ops (readback SHA 53e72731... MATCH): get t290metal.log,
+  put bundle with: MTLDeviceSPI (+MTLDevice, MTLDeviceSPIInternal if present)
+  added via class_addProtocol at load, both extra initializers, and logging
+  of +conformsToProtocol/+instancesRespondToSelector/+respondsToSelector/
+  +isSubclassOfClass/+allocWithZone on the device class. Next: boot, pstore.
+
 ## Active handoff 2026-10-24 (night, 5): 0147 booted; Metal finds the node but never creates the device
 
 - User: UI looks like GLES. SD metal2 done 7/7 (mkdir -> 0 works; bundle in

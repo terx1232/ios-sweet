@@ -94,6 +94,46 @@ static T290MetalDevice *shared_device;
 	return self;
 }
 - (instancetype)init { return [self initWithAcceleratorPort:0 options:nil]; }
+/* other initializers Metal.framework / IOGPU.framework know */
+- (instancetype)initWithAcceleratorPort:(mach_port_t)port { return [self initWithAcceleratorPort:port options:nil]; }
+- (instancetype)initWithAcceleratorPort:(mach_port_t)port simultaneousInstances:(BOOL)multi
+{
+	(void)multi;
+	return [self initWithAcceleratorPort:port options:nil];
+}
+
+/* Discovery diagnostics: what does Metal ask the plugin class? Its SPI
+ * protocols are added at load (t290_loaded) when the runtime has them. */
+static unsigned class_queries;
++ (BOOL)conformsToProtocol:(Protocol *)p
+{
+	BOOL yes = [super conformsToProtocol:p];
+	if (class_queries++ < 64) t290_log("T290Metal: +conformsToProtocol:%s -> %d", protocol_getName(p), yes);
+	return yes;
+}
++ (BOOL)instancesRespondToSelector:(SEL)sel
+{
+	BOOL yes = [super instancesRespondToSelector:sel];
+	if (class_queries++ < 64) t290_log("T290Metal: +instancesRespondToSelector:%s -> %d", sel_getName(sel), yes);
+	return yes;
+}
++ (BOOL)respondsToSelector:(SEL)sel
+{
+	BOOL yes = [super respondsToSelector:sel];
+	if (class_queries++ < 64) t290_log("T290Metal: +respondsToSelector:%s -> %d", sel_getName(sel), yes);
+	return yes;
+}
++ (BOOL)isSubclassOfClass:(Class)c
+{
+	BOOL yes = [super isSubclassOfClass:c];
+	if (class_queries++ < 64) t290_log("T290Metal: +isSubclassOfClass:%s -> %d", class_getName(c), yes);
+	return yes;
+}
++ (instancetype)allocWithZone:(struct _NSZone *)zone
+{
+	t290_log("T290Metal: +allocWithZone in %s", getprogname());
+	return [super allocWithZone:zone];
+}
 
 /* ---- identity and limits */
 - (NSString *)name { return _name; }
