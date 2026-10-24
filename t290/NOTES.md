@@ -4,6 +4,27 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff 2026-10-24 (morning): ui0146b — CA functions 45 and 28
+
+- ui0146a WAS booted (capture ios-t290/usb-captures/ui0146a/boot-20261024-010247-ui0146a,
+  SD request done 6/6). Guard PASS incl. inverse-mask repair; bridge 82-118 fps
+  windows. Decoded frame: home screen with icons and dock, but BLACK instead of
+  wallpaper, icon labels and status bar PURPLE instead of white.
+- Log: programless CA function 45 skipped with uniform 0 = 5 x vec4 (saturation/
+  brightness color matrix, same layout as function 20) -> wallpaper/vibrant text
+  passes missing; function 28 skipped with uniform 0 = 4 x vec2 texture offsets
+  (1 and 3 texels in x/y) -> blur step (dock/folders/Control Center).
+- ui0146b (ca_passes.h, ca_shaders.h): 45 uses the function-20 color-matrix
+  program; 28 uses a new 16-tap blur (each offset in 4 diagonal directions,
+  averaged). Parameters remembered per CA context like 20. Weights of CA's own
+  blur are not known (approximation). Software-Mesa ES2/ES3 tests PASS incl.
+  new blur check; WSL build /home/kirill/t290-toolchain/build-ui0146b PASS.
+  dl/ui0146b: bridge SHA256 in dl/ui0146b/SHA256SUMS; eagltest unchanged on device.
+- SD request STAGED 3 ops (get log+old bridge to dl/ui0146b/before, put bridge),
+  readback SHA256 57cb48ff... MATCH. No recovery written (0146 stays).
+  Next: boot, USB capture, check that "skipped" for 28/45 is gone, frame shows
+  wallpaper and white labels.
+
 ## Active handoff2026-10-24:0146 UI capture, ui0146a bridge ready
 
 - User reports0146 has not frozen so far; prioritizes missing/corrupt UI

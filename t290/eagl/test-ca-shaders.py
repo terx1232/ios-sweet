@@ -201,6 +201,23 @@ for version in (int(sys.argv[1]),):
         draw(4,0,3)
         expect(pixel(32,32), [0,0,0,0])
         print(f'PASS ES{version} {name}: 4 quadrants/RGBA, matrix/clamp, clip transform')
+    # Function 28 blur step: averaging 16 taps of a uniform image keeps it.
+    flat = (C.c_ubyte * 16)(*([200, 100, 50, 255] * 4))
+    tex_image(0x0de1, 0, 0x1908, 2, 2, 0, 0x1908, 0x1401, flat)
+    program = compile_program('ca_blur_source')
+    use(program)
+    transform = (F * 16)(1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1)
+    matrix(uniform(program, b'mvp'), 1, 0, transform)
+    vec2(uniform(program, b'invSize'), .5, .5)
+    integer(uniform(program, b'src'), 0)
+    vec4(uniform(program, b'offs'), 2, (F * 8)(.00125,.00078125, .00125,.00234375,
+                                              .00375,.00078125, .00375,.00234375))
+    clear_color(0,0,0,0)
+    clear(0x4000)
+    draw(4,0,3)
+    for position in ((16,16),(48,48)):
+        expect(pixel(*position), [200,100,50,255])
+    print(f'PASS ES{version} ca_blur_source: 16-tap average keeps a uniform image')
     # Compile the same independently written fixture as the device GLI guard.
     fixture=Path(__file__).with_name('eagltest.m').read_text().split('static int test_ca_inverse_mask',1)[1]
     literals=fixture.split('const char *sources[]={',1)[1].split('};',1)[0]

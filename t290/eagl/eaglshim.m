@@ -281,8 +281,8 @@ enum { DRAW_PRIMITIVES, DRAW_CLEAR, DRAW_ALL_ROWS };
     uint64_t _waitTicks;
     unsigned _waitCount, _flushCount, _drawCount;
     unsigned _drawKind;
-    GLuint _program, _caCopyProgram, _caColorProgram;
-    BOOL _caCopyFailed, _caColorFailed;
+    GLuint _program, _caCopyProgram, _caColorProgram, _caBlurProgram;
+    BOOL _caCopyFailed, _caColorFailed, _caBlurFailed;
     const GLfloat *_caMatrix;
     struct { void *renderer; void *dispatch[1100]; } _macro;
 }

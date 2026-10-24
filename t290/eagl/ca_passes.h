@@ -25,16 +25,20 @@ static void ca_remember(void *context, unsigned index, size_t components,
     size_t count, const GLfloat *values)
 {
     unsigned function = ca_function(context);
-    if (index || (function != 20 && function != 45) || components != 4 || count != 5) return;
+    /* color matrix (20, 45): 5 x vec4; blur step (28): 4 x vec2 */
+    BOOL matrix = (function == 20 || function == 45) && components == 4 && count == 5;
+    BOOL blur = function == 28 && components == 2 && count == 4;
+    if (index || (!matrix && !blur)) return;
+    size_t n = components * count;
     struct CAParameters *entry = NULL;
     for (unsigned i = 0; i < 16; i++)
         if (ca_parameters[i].context == context && ca_parameters[i].function == function)
             entry = &ca_parameters[i];
     if (!entry) entry = &ca_parameters[ca_parameter_next++ % 16];
     *entry = (struct CAParameters){.context = context, .function = function};
-    if (ca_read(values, entry->value, sizeof(entry->value))) {
-        for (unsigned i = 0; i < 20; i++) if (!isfinite(entry->value[i])) return;
-        entry->count = 20;
+    if (ca_read(values, entry->value, n * sizeof(GLfloat))) {
+        for (size_t i = 0; i < n; i++) if (!isfinite(entry->value[i])) return;
+        entry->count = (unsigned)n;
     }
 }
 
@@ -158,13 +162,13 @@ static void t290_uniform_matrix4fv(GLint location, GLsizei count, GLboolean tran
 }
 
 #include "ca_shaders.h"
-static GLuint ca_program(BOOL color_matrix)
+static GLuint ca_program(const char *fragment)
 {
     GLuint shaders[2] = {0}, program = gl.CreateProgram();
     BOOL ok = program != 0;
     for (unsigned i = 0; i < 2 && ok; i++) {
         shaders[i] = gl.CreateShader(i ? 0x8b30 : 0x8b31);
-        const char *source = i ? (color_matrix ? ca_color_source : ca_copy_source) : ca_vertex_source;
+        const char *source = i ? fragment : ca_vertex_source;
         gl.ShaderSource(shaders[i], 1, &source, NULL);
         gl.CompileShader(shaders[i]);
         GLint status = 0;
@@ -211,7 +215,10 @@ static int t290_ca_draw_begin(T290Context *ctx)
                 ctx->_bound[0]?IOSurfaceGetID(ctx->_bound[0]->source):0,
                 ctx->_bound[1]?IOSurfaceGetID(ctx->_bound[1]->source):0);
     }
-    if (function != 20 && function != 89) return CA_PASS_SKIP;
+    /* 20/45 color matrix (45: wallpaper and vibrant labels), 28 blur step,
+     * 89 copy; other programless functions stay skipped */
+    if (function != 20 && function != 45 && function != 28 && function != 89) return CA_PASS_SKIP;
+    BOOL colorMatrix = function == 20 || function == 45;
     GLfloat matrix[16];
     if (!ca_read(ctx->_caMatrix, matrix, sizeof(matrix)))
         return ca_skip(function, 0, "vertex matrix unavailable");
@@ -228,17 +235,22 @@ static int t290_ca_draw_begin(T290Context *ctx)
     GLsizei w = [definition[1] intValue], h = [definition[2] intValue];
     if (w <= 0 || h <= 0) return ca_skip(function, 4, "invalid texture geometry");
     const GLfloat *values = NULL;
-    if (function == 20) {
+    if (function != 89) {
+        unsigned want = function == 28 ? 8 : 20;
         for (unsigned i = 0; i < 16; i++)
             if (ca_parameters[i].context == ca_drawing_context &&
-                ca_parameters[i].function == function && ca_parameters[i].count == 20)
+                ca_parameters[i].function == function && ca_parameters[i].count == want)
                 values = ca_parameters[i].value;
-        if (!values) return ca_skip(function, 5, "color matrix parameters unavailable");
+        if (!values) return ca_skip(function, 5, function == 28 ? "blur offsets unavailable" :
+            "color matrix parameters unavailable");
     }
-    GLuint *program = function == 20 ? &ctx->_caColorProgram : &ctx->_caCopyProgram;
-    BOOL *failed = function == 20 ? &ctx->_caColorFailed : &ctx->_caCopyFailed;
+    GLuint *program = colorMatrix ? &ctx->_caColorProgram :
+        function == 28 ? &ctx->_caBlurProgram : &ctx->_caCopyProgram;
+    BOOL *failed = colorMatrix ? &ctx->_caColorFailed :
+        function == 28 ? &ctx->_caBlurFailed : &ctx->_caCopyFailed;
     if (!*program && !*failed) {
-        *program = ca_program(function == 20);
+        *program = ca_program(colorMatrix ? ca_color_source :
+            function == 28 ? ca_blur_source : ca_copy_source);
         *failed = !*program;
         plog("t290eagl: CA function %u replacement program %u", function, *program);
     }
@@ -247,7 +259,8 @@ static int t290_ca_draw_begin(T290Context *ctx)
     gl.UniformMatrix4fv(gl.GetUniformLocation(*program, "mvp"), 1, 0, matrix);
     gl.Uniform2f(gl.GetUniformLocation(*program, "invSize"), 1.f / w, 1.f / h);
     gl.Uniform1i(gl.GetUniformLocation(*program, "src"), 0);
-    if (values) gl.Uniform4fv(gl.GetUniformLocation(*program, "cols"), 5, values);
+    if (values && colorMatrix) gl.Uniform4fv(gl.GetUniformLocation(*program, "cols"), 5, values);
+    if (values && function == 28) gl.Uniform4fv(gl.GetUniformLocation(*program, "offs"), 2, values);
     return CA_PASS_PROGRAM;
 }
 
