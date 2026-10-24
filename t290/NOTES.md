@@ -4,6 +4,38 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff 2026-10-24 (night, 4): phase 4 — kernel 0147 built, metal2 staged, flash pending
+
+- xnu/patches/0147 (commit ca6783b, pushed to fork): T290Accelerator
+  (IOAcceleratorES subclass, MetalPluginName T290Metal, MetalPluginClassName
+  T290MetalDevice; user clients refused + logged) at the end of SweetGPU.cpp,
+  KernelConfigTables entry after SweetGPU; SD transfer op 3 = mkdir
+  (t290-xfer.ps1 -Mkdir). GitHub dispatch still HTTP 422 (Actions disabled):
+  built LOCALLY like 0136-0146: dl/t290-stability/{build0147.sh (patch
+  /home/kirill/fps0135/xnu, originals in base0146/), relink0147.py
+  (0146 recipe + SweetGPU/KernelConfigTables/sweet_t290_xfer objects from
+  metal0147-objects), pack0147.sh, qemu0147.sh}. Link exit 0, no undefined.
+  QEMU 60 s: no_panic_observed, reaches BSD root md0 (same as 0146).
+- dl/k-t290-0147: recovery-0147.img SHA c8b16aec..., kernel 9dd422b8...
+  Backup of current recovery (0146, 9efbdee0...) and guard script:
+  ios-t290/backup-20261024-metal0147/{recovery-before-0147.img,flash-0147.ps1}.
+  Read-only preflight PASS; image pushed to /data/local/tmp. **NOT flashed:
+  needs the user's explicit approval.**
+- Driver (dl/metal2, SHA256SUMS): GLSL disk cache
+  /private/var/tmp/t290metal-cache; device refused with t290metal.off,
+  t290metal.failed, or after 3 failed backboardd starts (counter
+  t290metal.backboardd, reset after 90 s). t290gputests now runs mtltest
+  on every backboardd start (90 s limit) and writes/clears t290metal.failed.
+- **metal2 SD request STAGED** 7 ops (get last boot's t290mtltest.log and
+  t290metal.log -> dl/metal2/before; mkdir
+  /System/Library/Extensions/T290Metal.bundle; put Info.plist, T290Metal,
+  t290mtltest, t290gputests), 55217184 bytes, readback SHA 4367e72d... MATCH.
+  mkdir needs kernel 0147: flash before the next boot, else the bundle puts
+  fail (test then falls back to /usr/lib/T290Metal).
+- With 0147, every Metal client (backboardd, SpringBoard, apps) gets the
+  T290Metal device. Watch t290metal.log / kernel log for "device lacks",
+  "unimplemented", user client refusals, and whether CA uses Metal.
+
 ## Active handoff 2026-10-24 (late night, 3): **metal1 mtltest PASS on the tablet**
 
 - SD request done 6/6. Device launchd.plist before the change was
