@@ -51,6 +51,15 @@ static int (*ca_original_supported)(void *);
 static int ca_supported(void *context)
 {
     int result = ca_original_supported(context);
+    /* Which effects CA itself rules out on this context (e.g. YCbCr
+     * wallpaper): once per function and result, also without tracing. */
+    {
+        static uint8_t reported[256];
+        unsigned function = ca_function(context);
+        uint8_t bit = result ? 2 : 1;
+        if (function < 256 && !(__atomic_fetch_or(&reported[function], bit, __ATOMIC_RELAXED) & bit))
+            plog("t290eagl: CA function %u supported %d", function, result);
+    }
     if (trace_render) {
         static uint8_t seen[256];
         unsigned function = ca_function(context);

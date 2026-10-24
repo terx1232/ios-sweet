@@ -362,6 +362,16 @@ static void t290_info_log(GLuint obj, GLsizei cap, GLsizei *len, GLchar *buf)
 static const GLubyte *t290_get_string(GLenum name)
 {
     /* Apple's private extension string. Do not advertise Apple-only state. */
+    static uint32_t asked[8];
+    for (unsigned i = 0; i < 8; i++) {
+        uint32_t seen = __atomic_load_n(&asked[i], __ATOMIC_RELAXED);
+        if (seen == name) break;
+        if (!seen && __atomic_compare_exchange_n(&asked[i], &seen, name, NO,
+                __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+            plog("t290eagl: client queried GL string %#x", name);
+            break;
+        }
+    }
     if (name == 0x8a1e) return (const GLubyte *)"";
     const GLubyte *p = gl.GetString(name);
     return p ? p : (const GLubyte *)"";
@@ -985,6 +995,27 @@ static uintptr_t unsupported_private(void *ctx, ...)
 }
 
 @implementation T290Context
+/* EAGL features CA probes but this object lacks: such a probe can silently
+ * disable a whole rendering path (e.g. YCbCr surfaces). Logged once each. */
+- (BOOL)respondsToSelector:(SEL)selector
+{
+    BOOL result = [super respondsToSelector:selector];
+    if (!result && selector) {
+        static NSMutableSet<NSString *> *missing;
+        static dispatch_once_t once;
+        dispatch_once(&once, ^{ missing = [NSMutableSet set]; });
+        NSString *name = NSStringFromSelector(selector);
+        BOOL first = NO;
+        @synchronized (missing) {
+            if (missing.count < 64 && ![missing containsObject:name]) {
+                [missing addObject:name];
+                first = YES;
+            }
+        }
+        if (first) plog("t290eagl: EAGL probe for missing method %s", name.UTF8String);
+    }
+    return result;
+}
 - (instancetype)initWithAPI:(unsigned)api group:(T290Sharegroup *)group
 {
     if (!(self = [super init])) return nil;
@@ -1044,6 +1075,13 @@ static uintptr_t unsupported_private(void *ctx, ...)
     uintptr_t offset = planes ? (uintptr_t)IOSurfaceGetBaseAddressOfPlane(surface, plane) -
         (uintptr_t)IOSurfaceGetBaseAddress(surface) : 0;
     uint32_t fourcc = IOSurfaceGetPixelFormat(surface);
+    if (planes || (fourcc && fourcc != 0x42475241 && fourcc != 0x52474241)) {
+        static unsigned count;
+        if (count++ < 40)
+            plog("t290eagl: IOSurface %u fmt %#x planes %zu plane %u %dx%d target %#x GL internal %#x "
+                 "format %#x type %#x", IOSurfaceGetID(surface), fourcc, planes, plane, w, h, target,
+                 internal, format, type);
+    }
     unsigned sourceFlags = surface_flags(surface);
     /* A read-only source can be sampled through an owned GPU mirror, but
      * publishing GPU writes back to it would fault. Reject target use. */

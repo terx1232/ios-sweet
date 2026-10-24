@@ -4,6 +4,27 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff 2026-10-24 (noon): ui0146b result, ui0146c diagnostics built
+
+- ui0146b booted (SD request done 3/3; capture ios-t290/usb-captures/ui0146b/
+  boot-20261024-102608-ui0146b). Function 28 replacement program created,
+  45 drawn with the color-matrix program, no skips. Frame (portrait): widget,
+  icons, dock OK; wallpaper still BLACK; labels/status text (77,38,76) dark
+  purple = vibrant text derived from the missing wallpaper (guess). App
+  Library icon in the dock has a stair-step edge. fps windows 12-132.
+- Wallpaper: SpringBoard creates 3 x 1536x1536 '420f' (2 planes) surfaces;
+  backboardd never calls texImageIOSurface for them (no plane/IOSurface logs)
+  -> CA decides itself not to render YCbCr on this context.
+- ui0146c (diagnostics only, always on, bounded): CA function_supported
+  results once per function/result; GL strings queried; EAGL respondsToSelector
+  misses; every IOSurface bind with non-RGBA/BGRA fourcc or planes.
+  WSL build /home/kirill/t290-toolchain/build-ui0146c PASS, dl/ui0146c.
+  NOT staged yet (tablet was in iPadOS). Next: Android -> stage put bridge,
+  boot, run dl/ui0146c/collect-live.py.
+- Apps: Camera.app is in /Applications (hidden: no camera capability);
+  TV, Music, Notes, Calendar, Mail, Maps, Clock, Books... are only in
+  /private/var/staged_system_apps (never installed because Setup is skipped).
+
 ## Active handoff 2026-10-24 (morning): ui0146b — CA functions 45 and 28
 
 - ui0146a WAS booted (capture ios-t290/usb-captures/ui0146a/boot-20261024-010247-ui0146a,
