@@ -18,6 +18,7 @@
 #define T290_MAX_SAMPLERS 16
 
 void t290_log(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+void t290_install_crash_log(void);
 BOOL t290_gl_start(void);
 void t290_gl_sync(void (^block)(void));
 void t290_gl_async(void (^block)(void));

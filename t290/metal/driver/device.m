@@ -30,6 +30,10 @@
 - (id<MTLCommandBuffer>)commandBufferWithUnretainedReferences { return [self commandBuffer]; }
 - (id<MTLCommandBuffer>)commandBufferWithDescriptor:(MTLCommandBufferDescriptor *)d { (void)d; return [self commandBuffer]; }
 - (void)insertDebugCaptureBoundary {}
+/* SPI CoreAnimation sets on its queues; completion handlers already run on
+ * a global queue */
+- (void)setSubmissionQueue:(dispatch_queue_t)q { (void)q; }
+- (void)setCompletionQueue:(dispatch_queue_t)q { (void)q; }
 @end
 
 /*
@@ -49,8 +53,32 @@ static BOOL t290_metal_allowed(void)
 	dispatch_once(&once, ^{ allowed = t290_metal_check(); });       /* one count per process */
 	return allowed;
 }
+/* Processes that may get the device: backboardd (CoreAnimation's render
+ * server) and the tests; others get nil and keep their non-Metal paths
+ * (mediaserverd and contextstored aborted on the first Metal boot). More
+ * names, one per line, in /private/var/tmp/t290metal.allow. */
+static BOOL process_allowed(void)
+{
+	const char *me = getprogname();
+	if (!strcmp(me, "backboardd") || !strcmp(me, "t290mtltest") || !strcmp(me, "t290mtlprobe")) return YES;
+	FILE *f = fopen(T290_FLAG_DIR "t290metal.allow", "r");
+	char line[128];
+	BOOL yes = NO;
+	while (f && fgets(line, sizeof(line), f)) {
+		line[strcspn(line, "\r\n")] = 0;
+		if (!strcmp(line, me)) yes = YES;
+	}
+	if (f) fclose(f);
+	return yes;
+}
+
 static BOOL t290_metal_check(void)
 {
+	if (!process_allowed()) {
+		t290_log("T290Metal: no device for %s (not in the allow list)", getprogname());
+		return NO;
+	}
+	t290_install_crash_log();
 	if (!strcmp(getprogname(), "t290mtltest")) return YES;
 	if (!access(T290_FLAG_DIR "t290metal.off", F_OK) || !access(T290_FLAG_DIR "t290metal.failed", F_OK)) {
 		t290_log("T290Metal: disabled by %s in %s", access(T290_FLAG_DIR "t290metal.off", F_OK) ? "t290metal.failed" : "t290metal.off",
@@ -306,6 +334,9 @@ static unsigned class_queries;
 /* ---- pipelines */
 - (id<MTLRenderPipelineState>)newRenderPipelineStateWithDescriptor:(MTLRenderPipelineDescriptor *)d error:(NSError **)error
 {
+	static unsigned traced;
+	if (traced++ < 24) t290_log("T290Metal: render pipeline %s + %s", d.vertexFunction.name.UTF8String ?: "-",
+	    d.fragmentFunction.name.UTF8String ?: "-");
 	return [[T290RenderPipeline alloc] initWithDevice:(T290Device *)self descriptor:d error:error];
 }
 - (id<MTLRenderPipelineState>)newRenderPipelineStateWithDescriptor:(MTLRenderPipelineDescriptor *)d options:(MTLPipelineOption)o

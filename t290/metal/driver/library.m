@@ -166,6 +166,8 @@ static MTLDataType constant_type(NSString *code)
 - (id<MTLFunction>)newFunctionWithName:(NSString *)name
 {
 	NSDictionary *e = _functions[name];
+	static unsigned traced;
+	if (traced++ < 24) t290_log("T290Metal: newFunctionWithName %s in %s", name.UTF8String, getprogname());
 	if (!e) { t290_log("T290Metal: no function %s", name.UTF8String); return nil; }
 	T290Function *f = [[T290Function alloc] initWithDevice:(T290Device *)self.device];
 	f->_bitcode = e[@"data"];

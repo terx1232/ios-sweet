@@ -4,6 +4,8 @@
 #import <objc/runtime.h>
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <signal.h>
+#include <sys/ucontext.h>
 #include <mach/mach.h>
 #include <pthread.h>
 #include <stdarg.h>
@@ -47,6 +49,65 @@ void t290_log(const char *fmt, ...)
 	if (log_conn) IOConnectCallStructMethod(log_conn, 7, buf, n, NULL, NULL);
 	buf[n++] = '\n';
 	if (log_fd >= 0) write(log_fd, buf, n);
+}
+
+/* ------------------------------------------------------------------ crash log */
+
+/* In processes that use the device: on a fatal signal, log the fault
+ * address, registers, the selector in x1 and a frame-pointer backtrace with
+ * image names, then let the default action run (crash report as before). */
+static struct sigaction old_actions[32];
+
+static void frame_log(const char *what, uintptr_t pc)
+{
+	Dl_info info;
+	if (dladdr((void *)pc, &info) && info.dli_fname) {
+		const char *img = strrchr(info.dli_fname, '/');
+		t290_log("T290Metal: crash %s %#lx %s+%#lx %s+%#lx", what, (unsigned long)pc, img ? img + 1 : info.dli_fname,
+		    (unsigned long)(pc - (uintptr_t)info.dli_fbase), info.dli_sname ?: "?",
+		    (unsigned long)(pc - (uintptr_t)info.dli_saddr));
+	} else {
+		t290_log("T290Metal: crash %s %#lx (no image)", what, (unsigned long)pc);
+	}
+}
+
+static void crash_handler(int sig, siginfo_t *si, void *ctx)
+{
+	ucontext_t *uc = ctx;
+	_STRUCT_ARM_THREAD_STATE64 *ss = &uc->uc_mcontext->__ss;
+	uintptr_t pc = (uintptr_t)__darwin_arm_thread_state64_get_pc(*ss);
+	uintptr_t lr = (uintptr_t)__darwin_arm_thread_state64_get_lr(*ss);
+	uintptr_t fp = (uintptr_t)__darwin_arm_thread_state64_get_fp(*ss);
+	t290_log("T290Metal: crash in %s: signal %d addr %p x0 %#llx x1 %#llx x2 %#llx x8 %#llx", getprogname(), sig,
+	    si->si_addr, ss->__x[0], ss->__x[1], ss->__x[2], ss->__x[8]);
+	frame_log("pc", pc);
+	frame_log("lr", lr);
+	Dl_info info;
+	if (ss->__x[1] && dladdr((void *)(uintptr_t)ss->__x[1], &info))
+		t290_log("T290Metal: crash x1 as selector: %.80s", (const char *)(uintptr_t)ss->__x[1]);
+	for (int i = 0; i < 24 && fp && !(fp & 7); i++) {
+		uintptr_t *f = (uintptr_t *)fp;
+		if (!f[1]) break;
+		frame_log("bt", f[1]);
+		if (f[0] <= fp) break;
+		fp = f[0];
+	}
+	sigaction(sig, &old_actions[sig], NULL);
+}
+
+void t290_install_crash_log(void)
+{
+	static dispatch_once_t once;
+	dispatch_once(&once, ^{
+		int sigs[] = {SIGSEGV, SIGBUS, SIGILL, SIGABRT, SIGTRAP, SIGFPE};
+		for (size_t i = 0; i < sizeof(sigs) / sizeof(sigs[0]); i++) {
+			struct sigaction sa;
+			memset(&sa, 0, sizeof(sa));
+			sa.sa_sigaction = crash_handler;
+			sa.sa_flags = SA_SIGINFO | SA_RESETHAND;
+			sigaction(sigs[i], &sa, &old_actions[sigs[i]]);
+		}
+	});
 }
 
 /* which processes load the bundle at all (Metal device discovery) */
