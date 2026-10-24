@@ -19,8 +19,10 @@
 - dl/k-t290-0147: recovery-0147.img SHA c8b16aec..., kernel 9dd422b8...
   Backup of current recovery (0146, 9efbdee0...) and guard script:
   ios-t290/backup-20261024-metal0147/{recovery-before-0147.img,flash-0147.ps1}.
-  Read-only preflight PASS; image pushed to /data/local/tmp. **NOT flashed:
-  needs the user's explicit approval.**
+  Read-only preflight PASS; image pushed to /data/local/tmp. **FLASHED
+  after the user's explicit approval**: flash-0147.ps1 -WriteApproved, full
+  partition readback SHA c8b16aec... PASS (flash-0147-result.json). No reboot
+  sent. Next: user boots recovery-menu iPadOS; then -Result, pstore, logs.
 - Driver (dl/metal2, SHA256SUMS): GLSL disk cache
   /private/var/tmp/t290metal-cache; device refused with t290metal.off,
   t290metal.failed, or after 3 failed backboardd starts (counter
