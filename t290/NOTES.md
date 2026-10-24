@@ -4,6 +4,27 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff 2026-10-25 (2): Metal device accepted; clients crash; metal6 staged
+
+- metal5 boot (USB live ios-t290/usb-captures/metal5, pstore
+  ios-t290/logs/metal5-return): `+isSubclassOfClass:_MTLDevice -> 1`,
+  MTLCreateSystemDefaultDevice -> T290MetalDevice. backboardd: device init,
+  featureProfile (unimplemented, x3), setSubmissionQueue:/setCompletionQueue:
+  on our queue (unimplemented), supportsFamily 1001 -> 1, QuartzCore library
+  loaded, then SIGSEGV far 0x10 with pc == lr (a call returned nil/0 and
+  its +0x10 field was read). 3 backboardd crashes -> counter disabled Metal
+  for backboardd as designed, but SpringBoard (same sig 11 / 0x10) and
+  mediaserverd/contextstored (sig 6) kept getting the device and crash-looped:
+  no UI. Symbolizing via the shared cache was not pursued.
+- metal6 (commit f14a856): allow list (backboardd, t290mtltest,
+  t290mtlprobe, + /private/var/tmp/t290metal.allow), crash logger in allowed
+  processes (signal handler: fault addr, x0/x1/x2/x8, selector in x1,
+  dladdr pc/lr/frame-pointer backtrace -> kernel log), queue SPI setters,
+  trace of first newFunctionWithName / render pipeline calls.
+- **metal6 STAGED** 4 ops (get t290metal.log + t290metal.backboardd,
+  put bundle, reset counter t290metal.backboardd = 0), readback SHA
+  0a9fb795... MATCH. Next boot: read "T290Metal: crash" lines.
+
 ## Active handoff 2026-10-25: Metal requires a _MTLDevice subclass
 
 - metal4 done 2/2; pstore ios-t290/logs/metal4-return. MTLDeviceSPI got
