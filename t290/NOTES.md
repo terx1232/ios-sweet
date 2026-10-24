@@ -4,6 +4,30 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff 2026-10-24 (late night): on-device compiler + T290Metal.bundle built
+
+- `t290/metal/compiler/` airglc: C++ port of airgl on llvm::Module
+  (specialization + same GLSL emission), C API `airglc.h`. Host CLI
+  (`build-host.sh`, llvm-14-dev) checked with the existing difftests via
+  `AIRGLC=~/airglc-host/airglc` (airgl/cppback.py): vertex 39/39,
+  fragment 93/95 incl. fixed_frag_lph_cph/cpf with 12 random constant sets
+  each (2 failures = inplace_copy, interpreter has no image writes).
+- `t290/metal/llvm-ios/`: LLVM 14.0.6 cross-built for iPadOS arm64 in WSL
+  (~/llvm-ios/build, 36 static libs, 60 MB). `compiler/build-ios.sh` ->
+  ~/t290-toolchain/build-airglc/{airglc,libairglc.a} (not run on device).
+- Translators: fragment position y via `T290_FRAG_Y`, dfdy via `T290_DFDY`
+  (defaults keep the test convention; the driver redefines them).
+- `t290/metal/driver/` (README there): T290Metal.bundle = Metal device on
+  Mesa GLES 3.1 + airglc + LLVM, and `mtltest` hardware test. Built with
+  `driver/build-bundle.sh` -> ~/t290-toolchain/build-metal (SHA256SUMS
+  there). NOT on the device yet, nothing executed on hardware.
+- Next: stage T290Metal.bundle to /System/Library/Extensions/,
+  mtltest to /usr/bin/t290mtltest, add a run-once launchd job
+  (tools/launchd-add-job.py) - needs the user's OK; then boot, read
+  /private/var/tmp/t290mtltest.log + t290metal.log. Kernel IOAcceleratorES
+  node (phase 4) only after mtltest passes.
+- Tablet still has ui0146d with capture marker '2': stage trace "0".
+
 ## Active handoff 2026-10-24 (night): Metal phase 1 done (airgl translator)
 
 - `t290/metal/airgl/` (see its README): AIR -> GLSL ES 3.10 translator,

@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import airgl
 import airinterp
 import llparse
+import cppback
 
 opt_dir = os.path.expanduser(sys.argv[1] if len(sys.argv) > 1 else '~/air/opt')
 glsl_dir = os.path.expanduser(sys.argv[2] if len(sys.argv) > 2 else '~/air/glsl')
@@ -152,6 +153,8 @@ def fc_literal(v):
 def run_case(mod, fn, refl, text, roles, outs, seed):
     random.seed(seed)
     consts = rand_consts(refl)
+    if cppback.AIRGLC and refl['name'].startswith('fixed_frag') and 0 in consts:
+        consts[0] = 0      # fc_generic=1 is the run-time-config path (not specializable)
     fbtex = {}
     # inputs
     params = fn.params
@@ -194,6 +197,10 @@ def run_case(mod, fn, refl, text, roles, outs, seed):
             args.append(('fb', rtn_, pt))
         else:
             raise RuntimeError('arg kind %s' % kind)
+    if cppback.AIRGLC:
+        text, refl = cppback.compile(fn.name, consts)
+        bufs = {b['index']: cppback.pad(bufs[b['index']], b) for b in refl['buffers'] if b['index'] in bufs} | \
+            {k: v for k, v in bufs.items() if k not in {b['index'] for b in refl['buffers']}}
     # GL program
     vs_lines = ['#version 310 es', 'precision highp float;']
     flats = {i['key'] for i in refl['inputs'] if i.get('interp') == 'flat'}
@@ -321,10 +328,11 @@ for k, name in enumerate(names):
     jp = os.path.join(glsl_dir, name + '.json')
     if not os.path.exists(jp): continue
     refl = json.load(open(jp))
-    if refl['stage'] != 'fragment' or name.startswith('fixed_frag'):   # see spectest.py
+    if refl['stage'] != 'fragment' or (name.startswith('fixed_frag') and not cppback.AIRGLC):   # see spectest.py
         results['skip'] += 1
         continue
     text = open(os.path.join(glsl_dir, name + '.glsl')).read()
+    cppback.bc_path = os.path.join(os.path.dirname(opt_dir.rstrip('/')), 'm%03d.bc' % k)
     mod = llparse.parse_module(open(os.path.join(opt_dir, 'm%03d.ll' % k)).read())
     fn = [f for f in mod.funcs.values() if f.section != 'air.static_init'][0]
     try:

@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import airgl
 import airinterp
 import llparse
+import cppback
 
 opt_dir, glsl_dir = os.path.expanduser(sys.argv[1]), os.path.expanduser(sys.argv[2])
 only = sys.argv[3] if len(sys.argv) > 3 else None
@@ -140,6 +141,9 @@ def run_case(mod, fn, refl, text, seed):
         else:
             raise RuntimeError('vertex arg kind %s' % kind)
     # capture all varyings + position
+    if cppback.AIRGLC:
+        text, refl = cppback.compile(fn.name, consts)
+        bufs = {k: cppback.pad(v, next((b for b in refl['buffers'] if b['index'] == k), {})) for k, v in bufs.items()}
     vs_text = specialize(text, consts)
     vs_text = vs_text.rstrip()
     assert vs_text.endswith('}')
@@ -241,6 +245,7 @@ for k, name in enumerate(names):
     refl = json.load(open(jp))
     if refl['stage'] != 'vertex': continue
     text = open(os.path.join(glsl_dir, name + '.glsl')).read()
+    cppback.bc_path = os.path.join(os.path.dirname(opt_dir.rstrip('/')), 'm%03d.bc' % k)
     mod = llparse.parse_module(open(os.path.join(opt_dir, 'm%03d.ll' % k)).read())
     fn = [f for f in mod.funcs.values() if f.section != 'air.static_init'][0]
     try:

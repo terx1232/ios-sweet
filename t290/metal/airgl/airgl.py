@@ -12,7 +12,8 @@ Memory model (freedreno a5xx: no vertex SSBOs):
   globals, allocas             -> GLSL uint word arrays
 Coordinates: Metal clip z is 0..1 and the framebuffer origin is top-left;
 the vertex stage writes gl_Position.y negated and z remapped, the fragment
-stage derives Metal's position.y from T290_RT_HEIGHT.
+stage derives Metal's position.y with T290_FRAG_Y (default: T290_RT_HEIGHT - y;
+the driver renders y-flipped and defines it as y, and T290_DFDY as -dFdy).
 """
 import json
 import os
@@ -596,7 +597,7 @@ class Translator:
             elif kind == 'air.base_instance':
                 self.vals[pname] = '0'
             elif kind == 'air.position' and self.stage == 'fragment':
-                self.vals[pname] = 'vec4(gl_FragCoord.x, T290_RT_HEIGHT - gl_FragCoord.y, gl_FragCoord.z, 1.0 / gl_FragCoord.w)'
+                self.vals[pname] = 'vec4(gl_FragCoord.x, T290_FRAG_Y(gl_FragCoord.y), gl_FragCoord.z, 1.0 / gl_FragCoord.w)'
                 self.need_rt_height = True
             elif kind == 'air.fragment_input':
                 gen = rest[1]
@@ -1062,7 +1063,7 @@ class Translator:
         simple = {'fabs': 'abs', 'floor': 'floor', 'ceil': 'ceil', 'sqrt': 'sqrt', 'rsqrt': 'inversesqrt',
                   'fract': 'fract', 'sin': 'sin', 'cos': 'cos', 'exp': 'exp', 'log': 'log', 'log2': 'log2',
                   'exp2': 'exp2', 'sign': 'sign', 'trunc': 'trunc', 'rint': 'roundEven', 'round': 'round',
-                  'dfdx': 'dFdx', 'dfdy': 'dFdy', 'fwidth': 'fwidth', 'normalize': 'normalize',
+                  'dfdx': 'dFdx', 'dfdy': 'T290_DFDY', 'fwidth': 'fwidth', 'normalize': 'normalize',
                   'length': 'length', 'tan': 'tan', 'atan': 'atan', 'asin': 'asin', 'acos': 'acos'}
         if fn in simple:
             self.define(i, '%s(%s)' % (simple[fn], X(0))); return
@@ -1214,7 +1215,10 @@ class Translator:
         if getattr(self, 'need_tbuf', False): hdr.append('#extension GL_EXT_texture_buffer : require')
         hdr += ['precision highp float;', 'precision highp int;', 'precision highp usamplerBuffer;' if getattr(self, 'need_tbuf', False) else '',
                 '#ifndef T290_SPECIALIZED', '#error function constants not defined', '#endif']
-        if getattr(self, 'need_rt_height', False): hdr.append('uniform highp float T290_RT_HEIGHT;')
+        if getattr(self, 'need_rt_height', False):
+            hdr += ['uniform highp float T290_RT_HEIGHT;', '#ifndef T290_FRAG_Y',
+                    '#define T290_FRAG_Y(y) (T290_RT_HEIGHT - (y))', '#endif']
+        hdr += ['#ifndef T290_DFDY', '#define T290_DFDY(x) dFdy(x)', '#endif']   # the driver flips y
         if self.stage == 'kernel':
             hdr.append('layout(local_size_x = T290_LOCAL_X, local_size_y = T290_LOCAL_Y, local_size_z = T290_LOCAL_Z) in;')
         structs = [struct_decl(n, t) for n, t in STRUCTS.values()]
