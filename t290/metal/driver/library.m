@@ -2,7 +2,10 @@
  * (airglc), GL program linking with explicit bindings, pipeline states. */
 #import "t290mtl.h"
 #include "../compiler/airglc.h"
+#include <CommonCrypto/CommonDigest.h>
 #include <pthread.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 /* ------------------------------------------------------------------ metallib */
 
@@ -206,16 +209,69 @@ static MTLDataType constant_type(NSString *code)
 static pthread_mutex_t compile_lock = PTHREAD_MUTEX_INITIALIZER;
 static NSMutableDictionary *shader_cache;
 
+/* Translations persist across processes and boots (fixed_frag takes ~3.5 s
+ * on the tablet). Key: SHA-256 of the bitcode, function, constants and the
+ * translator revision; one file per shader: GLSL, a marker line, JSON. */
+#define T290_CACHE_DIR "/private/var/tmp/t290metal-cache"
+#define T290_CACHE_REV "airglc-1"
+static NSString *const cache_sep = @"\n//T290-REFLECTION\n";
+
+static NSString *cache_path(T290Function *f, NSString *constants)
+{
+	CC_SHA256_CTX c;
+	unsigned char md[CC_SHA256_DIGEST_LENGTH];
+	CC_SHA256_Init(&c);
+	CC_SHA256_Update(&c, f->_bitcode.bytes, (CC_LONG)f->_bitcode.length);
+	NSData *rest = [[NSString stringWithFormat:@"|%@|%@|%s", f->_name, constants, T290_CACHE_REV] dataUsingEncoding:NSUTF8StringEncoding];
+	CC_SHA256_Update(&c, rest.bytes, (CC_LONG)rest.length);
+	CC_SHA256_Final(md, &c);
+	NSMutableString *hex = [NSMutableString stringWithString:@T290_CACHE_DIR "/"];
+	for (int i = 0; i < 16; i++) [hex appendFormat:@"%02x", md[i]];
+	[hex appendString:@".glsl"];
+	return hex;
+}
+
+static T290Shader *cache_load(NSString *path)
+{
+	NSString *s = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+	NSRange r = s ? [s rangeOfString:cache_sep options:NSBackwardsSearch] : NSMakeRange(NSNotFound, 0);
+	if (r.location == NSNotFound) return nil;
+	T290Shader *sh = [T290Shader new];
+	sh->glsl = [s substringToIndex:r.location];
+	NSData *j = [[s substringFromIndex:NSMaxRange(r)] dataUsingEncoding:NSUTF8StringEncoding];
+	sh->refl = [NSJSONSerialization JSONObjectWithData:j options:0 error:nil];
+	return sh->refl ? sh : nil;
+}
+
+static void cache_store(NSString *path, NSString *glsl, const char *json)
+{
+	mkdir(T290_CACHE_DIR, 01777);
+	chmod(T290_CACHE_DIR, 01777);
+	NSString *tmp = [path stringByAppendingFormat:@".%d", getpid()];
+	NSString *s = [NSString stringWithFormat:@"%@%@%s", glsl, cache_sep, json];
+	if ([s writeToFile:tmp atomically:NO encoding:NSUTF8StringEncoding error:nil]) {
+		chmod(tmp.fileSystemRepresentation, 0644);
+		rename(tmp.fileSystemRepresentation, path.fileSystemRepresentation);
+	}
+}
+
 @implementation T290Shader
 + (T290Shader *)compile:(T290Function *)f error:(NSError **)error
 {
 	NSArray *keys = [f->_values.allKeys sortedArrayUsingSelector:@selector(compare:)];
-	NSMutableString *key = [NSMutableString stringWithFormat:@"%p/%@", f->_bitcode.bytes, f->_name];
-	for (NSNumber *k in keys) [key appendFormat:@" %@=%@", k, [f->_values[k] componentsJoinedByString:@","]];
+	NSMutableString *consts = [NSMutableString string];
+	for (NSNumber *k in keys) [consts appendFormat:@" %@=%@", k, [f->_values[k] componentsJoinedByString:@","]];
+	NSString *key = [NSString stringWithFormat:@"%p/%@%@", f->_bitcode.bytes, f->_name, consts];
 	pthread_mutex_lock(&compile_lock);
 	if (!shader_cache) shader_cache = [NSMutableDictionary dictionary];
 	T290Shader *s = shader_cache[key];
 	if (s) { pthread_mutex_unlock(&compile_lock); return s; }
+	NSString *disk = cache_path(f, consts);
+	if ((s = cache_load(disk))) {
+		shader_cache[key] = s;
+		pthread_mutex_unlock(&compile_lock);
+		return s;
+	}
 	struct airglc_constant *c = calloc(keys.count ?: 1, sizeof(*c));
 	size_t n = 0;
 	for (NSNumber *k in keys) {
@@ -239,6 +295,7 @@ static NSMutableDictionary *shader_cache;
 	s = [T290Shader new];
 	s->glsl = [NSString stringWithUTF8String:glsl];
 	s->refl = [NSJSONSerialization JSONObjectWithData:[NSData dataWithBytes:json length:strlen(json)] options:0 error:nil];
+	cache_store(disk, s->glsl, json);
 	airglc_free(glsl);
 	airglc_free(json);
 	shader_cache[key] = s;

@@ -32,6 +32,49 @@
 - (void)insertDebugCaptureBoundary {}
 @end
 
+/*
+ * Fallback to CoreAnimation's GLES renderer (no Metal device):
+ *   /private/var/tmp/t290metal.off     set by hand (SD transfer) to disable
+ *   /private/var/tmp/t290metal.failed  written by t290gputests when mtltest fails
+ *   backboardd crash loop: every start increments t290metal.backboardd, a
+ *   start that lives 90 s resets it; at 3 the device is refused.
+ * mtltest itself (getprogname t290mtltest) is never refused.
+ */
+#define T290_FLAG_DIR "/private/var/tmp/"
+static BOOL t290_metal_check(void);
+static BOOL t290_metal_allowed(void)
+{
+	static dispatch_once_t once;
+	static BOOL allowed;
+	dispatch_once(&once, ^{ allowed = t290_metal_check(); });       /* one count per process */
+	return allowed;
+}
+static BOOL t290_metal_check(void)
+{
+	if (!strcmp(getprogname(), "t290mtltest")) return YES;
+	if (!access(T290_FLAG_DIR "t290metal.off", F_OK) || !access(T290_FLAG_DIR "t290metal.failed", F_OK)) {
+		t290_log("T290Metal: disabled by %s in %s", access(T290_FLAG_DIR "t290metal.off", F_OK) ? "t290metal.failed" : "t290metal.off",
+		    getprogname());
+		return NO;
+	}
+	if (strcmp(getprogname(), "backboardd")) return YES;
+	const char *counter = T290_FLAG_DIR "t290metal.backboardd";
+	int n = 0;
+	FILE *f = fopen(counter, "r");
+	if (f) { if (fscanf(f, "%d", &n) != 1) n = 0; fclose(f); }
+	if (n >= 3) {
+		t290_log("T290Metal: backboardd failed %d starts on Metal: using GLES (delete %s to retry)", n, counter);
+		return NO;
+	}
+	if ((f = fopen(counter, "w"))) { fprintf(f, "%d\n", n + 1); fclose(f); }
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 90 * NSEC_PER_SEC), dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+		FILE *g = fopen(counter, "w");
+		if (g) { fprintf(g, "0\n"); fclose(g); }
+		t290_log("T290Metal: backboardd stable on Metal for 90 s");
+	});
+	return YES;
+}
+
 @implementation T290MetalDevice {
 	NSString *_name;
 }
@@ -43,6 +86,7 @@ static T290MetalDevice *shared_device;
 	(void)port; (void)options;
 	if (!(self = [super init])) return nil;
 	t290_log("T290Metal: device init in %s pid %d", getprogname(), getpid());
+	if (!t290_metal_allowed()) return nil;
 	if (!t290_gl_start()) return nil;
 	t290_hook_constant_values();
 	_name = [NSString stringWithFormat:@"T290 %s", t290_caps.renderer];

@@ -1,11 +1,13 @@
 /*
  * t290gputests: the backboardd guard test of t290launch (--test). Runs
  * /usr/bin/eagltest and returns its status, so the GLES bridge gate is
- * unchanged. Before that, once per marker (/private/var/tmp/t290mtltest.done
- * absent), runs the Metal driver test /usr/bin/t290mtltest /usr/lib/T290Metal
- * with a 180 s limit; its result never affects the gate. Both run before
- * backboardd, so the GPU has a single client at a time. Kernel log lines
- * through SweetGPU selector 7.
+ * unchanged. Before that it runs the Metal driver test
+ * (/usr/bin/t290mtltest, 90 s limit) on every backboardd start: a failure
+ * writes /private/var/tmp/t290metal.failed, which makes T290Metal refuse
+ * the device so CoreAnimation stays on GLES; a pass removes it. The driver
+ * lives in /System/Library/Extensions/T290Metal.bundle (or /usr/lib/T290Metal
+ * as a bare Mach-O). Both tests run before backboardd, so the GPU has a
+ * single client at a time. Kernel log lines through SweetGPU selector 7.
  */
 #include <mach/mach.h>
 #include <errno.h>
@@ -44,7 +46,7 @@ klog(const char *msg)
 	IOObjectRelease(svc);
 }
 
-/* exit status, or -1 if it could not run / was killed */
+/* exit status, or -1 if it could not run / was killed, -2 on timeout */
 static int
 run(char *const argv[], int limit)
 {
@@ -74,16 +76,21 @@ int
 main(void)
 {
 	char msg[256];
-	const char *marker = "/private/var/tmp/t290mtltest.done";
-	if (access(marker, F_OK) != 0 && access("/usr/bin/t290mtltest", X_OK) == 0) {
-		int fd = open(marker, O_WRONLY | O_CREAT, 0644);     /* once, even if it crashes the boot */
-		if (fd >= 0)
-			close(fd);
-		klog("t290gputests: running t290mtltest");
-		char *mt[] = {"/usr/bin/t290mtltest", "/usr/lib/T290Metal", NULL};
-		int r = run(mt, 180);
-		snprintf(msg, sizeof(msg), "t290gputests: t290mtltest exit %d (%s)", r,
-		    r == 0 ? "PASS" : r == -2 ? "TIMEOUT, killed" : "FAIL");
+	const char *failed = "/private/var/tmp/t290metal.failed";
+	char *bundle = access("/System/Library/Extensions/T290Metal.bundle/T290Metal", F_OK) == 0 ?
+	    "/System/Library/Extensions/T290Metal.bundle" : "/usr/lib/T290Metal";
+	if (access("/usr/bin/t290mtltest", X_OK) == 0) {
+		char *mt[] = {"/usr/bin/t290mtltest", bundle, NULL};
+		int r = run(mt, 90);
+		if (r == 0) {
+			unlink(failed);
+		} else {
+			int fd = open(failed, O_WRONLY | O_CREAT, 0644);
+			if (fd >= 0)
+				close(fd);
+		}
+		snprintf(msg, sizeof(msg), "t290gputests: t290mtltest %s exit %d (%s)", bundle, r,
+		    r == 0 ? "PASS, Metal allowed" : r == -2 ? "TIMEOUT, Metal disabled" : "FAIL, Metal disabled");
 		klog(msg);
 	}
 	char *eg[] = {"/usr/bin/eagltest", NULL};

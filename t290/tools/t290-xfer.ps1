@@ -4,12 +4,14 @@
 # the iPadOS kernel carries it out at its next boot.
 #   t290-xfer.ps1 -Put 'C:\x\gputest=/usr/bin/gputest:755' -Get '/System/Library/xpc/launchd.plist=C:\x\launchd.plist'
 #     (several -Put/-Get allowed, comma-separated) -> boot iPadOS, come back to Android
+#   -Mkdir '/a/b.bundle' creates directories (kernel 0147+), after the gets and before the puts
 #   t290-xfer.ps1 -Result      -> per-op results, fetched files written locally
-param([string[]]$Put = @(), [string[]]$Get = @(), [switch]$Result)
+param([string[]]$Put = @(), [string[]]$Get = @(), [string[]]$Mkdir = @(), [switch]$Result)
 $ErrorActionPreference = 'Stop'
 # powershell -File passes "a,b" as one string: split lists ourselves
 $Put = @($Put | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $Get = @($Get | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
+$Mkdir = @($Mkdir | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $adb = 'D:\test1\tools-win\platform-tools\adb.exe'
 $su = '/debug_ramdisk/su'
 $XferLba = 33558528
@@ -43,7 +45,7 @@ if ($Result) {
 		$op = [BitConverter]::ToUInt32($h, $o); $lba = [BitConverter]::ToUInt64($h, $o + 16)
 		$res = [BitConverter]::ToInt64($h, $o + 24)
 		$path = [Text.Encoding]::UTF8.GetString($h, $o + 64, 448).TrimEnd([char]0)
-		"  $(if ($op -eq 1) {'put'} else {'get'}) $path -> $res"
+		"  $(if ($op -eq 1) {'put'} elseif ($op -eq 3) {'mkdir'} else {'get'}) $path -> $res"
 		if ($op -eq 2 -and $res -gt 0 -and $state -eq 1) {
 			$local = ($m | Where-Object { $_.remote -eq $path }).local
 			if (-not $local) { $local = Join-Path $env:TEMP ([IO.Path]::GetFileName($path)) }
@@ -67,6 +69,9 @@ foreach ($g in $Get) {
 	$ops += @{ op = 2; mode = 0; size = [uint64]$cap; lba = [uint64]$lba; path = $remote }
 	$man += @{ remote = $remote; local = $local }
 	$lba += $cap / 512 + 8
+}
+foreach ($d in $Mkdir) {
+	$ops += @{ op = 3; mode = [Convert]::ToUInt32('755', 8); size = [uint64]0; lba = [uint64]0; path = $d }
 }
 foreach ($p in $Put) {
 	$src, $rest = $p -split '=', 2
@@ -101,4 +106,4 @@ Invoke-Adb push $f /data/local/tmp/xfer.bin | Out-Null
 Sh "dd if=/data/local/tmp/xfer.bin of=/dev/block/mmcblk1 bs=512 seek=$XferLba conv=notrunc && sync" | Out-Null
 $back = Sh "dd if=/dev/block/mmcblk1 bs=512 skip=$XferLba count=1 2>/dev/null | head -c 8"
 if ($back -ne 'T290XFR1') { throw "request not written (read back '$back')" }
-"request written: $($ops.Count) ops ($($Put.Count) put, $($Get.Count) get); boot iPadOS, then -Result"
+"request written: $($ops.Count) ops ($($Put.Count) put, $($Get.Count) get, $($Mkdir.Count) mkdir); boot iPadOS, then -Result"

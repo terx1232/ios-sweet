@@ -1,0 +1,144 @@
+diff --git a/bsd/dev/sweet_t290_xfer.c b/bsd/dev/sweet_t290_xfer.c
+--- a/bsd/dev/sweet_t290_xfer.c
++++ b/bsd/dev/sweet_t290_xfer.c
+@@ -10,7 +10,7 @@
+  * Layout from XFER_LBA (512-byte sectors, little-endian):
+  *   +0        header: "T290XFR1", u32 nonce, u32 nops (<= 32), u32 state
+  *             (0 pending, 1 done), u32 kernel results summary
+- *   +1+i      op i: u32 op (1 put, 2 get), u32 mode, u64 size (put: bytes;
++ *   +1+i      op i: u32 op (1 put, 2 get, 3 mkdir), u32 mode, u64 size (put: bytes;
+  *             get: capacity), u64 data_lba, i64 result (bytes or -errno),
+  *             path at +64 (NUL-terminated, < 448 bytes)
+  *   data      wherever data_lba points (beyond the op sectors)
+@@ -22,6 +22,7 @@
+ #include <sys/fcntl.h>
+ #include <sys/kauth.h>
+ #include <sys/uio.h>
++#include <sys/namei.h>
+ #include <kern/thread.h>
+ #include <kern/clock.h>
+ #include <kern/kalloc.h>
+@@ -111,6 +112,34 @@
+ 	return err ? -err : (int64_t)done;
+ }
+ 
++/* one directory level (send parents first); an existing directory is fine */
++static int64_t
++xfer_mkdir(struct xfer_op *o, vfs_context_t ctx)
++{
++	struct nameidata nd;
++	NDINIT(&nd, CREATE, OP_MKDIR, LOCKPARENT | AUDITVNPATH1, UIO_SYSSPACE, CAST_USER_ADDR_T(o->path), ctx);
++	int err = namei(&nd);
++	if (err) {
++		return -err;
++	}
++	vnode_t dvp = nd.ni_dvp, vp = nd.ni_vp;
++	if (vp == NULLVP) {
++		struct vnode_attr va;
++		VATTR_INIT(&va);
++		VATTR_SET(&va, va_type, VDIR);
++		VATTR_SET(&va, va_mode, (mode_t)(o->mode & 07777));
++		err = VNOP_MKDIR(dvp, &vp, &nd.ni_cnd, &va, ctx);
++	} else if (vnode_vtype(vp) != VDIR) {
++		err = ENOTDIR;
++	}
++	nameidone(&nd);
++	if (vp != NULLVP) {
++		vnode_put(vp);
++	}
++	vnode_put(dvp);
++	return err ? -err : 0;
++}
++
+ void
+ sweet_t290_xfer_run(void)
+ {
+@@ -132,9 +161,11 @@
+ 		}
+ 		op->path[sizeof(op->path) - 1] = 0;
+ 		op->result = op->op == 1 ? xfer_put(op, buf, ctx) :
+-		    op->op == 2 ? xfer_get(op, buf, ctx) : -EINVAL;
++		    op->op == 2 ? xfer_get(op, buf, ctx) :
++		    op->op == 3 ? xfer_mkdir(op, ctx) : -EINVAL;
+ 		ok += op->result >= 0;
+-		printf("SWEET XFER: %s %s -> %lld\n", op->op == 1 ? "put" : "get", op->path, op->result);
++		printf("SWEET XFER: %s %s -> %lld\n", op->op == 1 ? "put" : op->op == 2 ? "get" : "mkdir", op->path,
++		    op->result);
+ 		(void)sweet_sdhc_raw(XFER_LBA + 1 + i, op, 1, true);
+ 	}
+ 	hdr[4] = 1;
+diff --git a/iokit/Kernel/arm/SweetGPU.cpp b/iokit/Kernel/arm/SweetGPU.cpp
+--- a/iokit/Kernel/arm/SweetGPU.cpp
++++ b/iokit/Kernel/arm/SweetGPU.cpp
+@@ -581,3 +581,56 @@
+ 	return kIOReturnSuccess;
+ }
+ #endif /* ARM64_BOARD_CONFIG_SWEET && SWEET_T290 */
++
++/*
++ * Metal discovery (Metal.framework MTLRegisterDevices): services of class
++ * IOAcceleratorES name the driver bundle /System/Library/Extensions/
++ * <MetalPluginName>.bundle and its device class (MetalPluginClassName),
++ * created with -initWithAcceleratorPort:options:. T290Metal runs on Mesa
++ * through SweetGPU and needs nothing else from this node; user clients are
++ * refused and logged.
++ */
++#if defined(ARM64_BOARD_CONFIG_SWEET) && defined(SWEET_T290)
++#include <libkern/c++/OSString.h>
++
++class IOAcceleratorES : public IOService {
++	OSDeclareDefaultStructors(IOAcceleratorES);
++};
++OSDefineMetaClassAndStructors(IOAcceleratorES, IOService);
++
++class T290Accelerator : public IOAcceleratorES {
++	OSDeclareDefaultStructors(T290Accelerator);
++public:
++	bool start(IOService *provider) APPLE_KEXT_OVERRIDE;
++	IOReturn newUserClient(task_t owningTask, void *securityID, UInt32 type,
++	    IOUserClient **handler) APPLE_KEXT_OVERRIDE;
++};
++OSDefineMetaClassAndStructors(T290Accelerator, IOAcceleratorES);
++
++bool
++T290Accelerator::start(IOService *provider)
++{
++	if (!IOService::start(provider)) {
++		return false;
++	}
++	setProperty("MetalPluginName", "T290Metal");
++	setProperty("MetalPluginClassName", "T290MetalDevice");
++	setProperty("IOGLESBundleName", "T290Metal");
++	setProperty("model", "T290 Adreno 504");
++	registerService();
++	IOLog("SWEET GPU: T290Accelerator (IOAcceleratorES) registered, Metal plugin T290Metal\n");
++	return true;
++}
++
++IOReturn
++T290Accelerator::newUserClient(task_t owningTask, void *securityID, UInt32 type, IOUserClient **handler)
++{
++	(void)owningTask;
++	(void)securityID;
++	(void)handler;
++	char name[64] = "?";
++	proc_name(proc_selfpid(), name, sizeof(name));
++	IOLog("SWEET GPU: T290Accelerator user client type %u from %s refused\n", (unsigned)type, name);
++	return kIOReturnUnsupported;
++}
++#endif /* ARM64_BOARD_CONFIG_SWEET && SWEET_T290 */
+diff --git a/iokit/KernelConfigTables.cpp b/iokit/KernelConfigTables.cpp
+--- a/iokit/KernelConfigTables.cpp
++++ b/iokit/KernelConfigTables.cpp
+@@ -88,6 +88,11 @@
+     "     'IOProviderClass' = IOResources;"
+     "     'IOMatchCategory' = SweetGPU;"
+     "   },"
++    "   {"
++    "     'IOClass'         = T290Accelerator;"
++    "     'IOProviderClass' = IOResources;"
++    "     'IOMatchCategory' = T290Accelerator;"
++    "   },"
+ #endif
+     "   {"
+     "     'IOClass'         = SweetBattery;"
