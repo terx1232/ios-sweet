@@ -4,6 +4,27 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff 2026-10-24 (late night, 2): metal1 STAGED on the SD card
+
+- Previous request (ui0146d) was done 4/4; its log/bridge went to
+  dl/ui0146d/before. Trace marker on the device is still "2" (capture).
+- **metal1 request STAGED** (user approved in chat), 6 ops: get
+  launchd.plist + t290eagl.log -> dl/metal1/before; put /usr/lib/T290Metal
+  (bundle Mach-O alone: the transfer cannot create directories; mtltest
+  dlopens it), /usr/bin/t290mtltest, /usr/bin/t290gputests,
+  /System/Library/xpc/launchd.plist = dl/metal1/launchd.metal1.plist
+  (base dl/eagl-bridge3/launchd.guarded.plist; only change: backboardd
+  `--test /usr/bin/eagltest` -> `--test /usr/bin/t290gputests`). Compare
+  before/launchd.plist with launchd.guarded.plist after the boot.
+- t290gputests (t290/ios/t290gputests.c): once (marker
+  /private/var/tmp/t290mtltest.done) runs t290mtltest with a 180 s limit,
+  then eagltest, returning eagltest's status: the GLES gate is unchanged
+  and a Metal failure only logs. Hashes in dl/metal1/SHA256SUMS.
+  Request 55950392 bytes, SD readback SHA256 1cbae078... MATCH.
+- Next: boot iPadOS, return to Android, `t290-xfer.ps1 -Result`, then GET
+  /private/var/tmp/t290mtltest.log and /private/var/tmp/t290metal.log,
+  pstore for the "t290gputests:" kernel lines. To rerun, delete the marker.
+
 ## Active handoff 2026-10-24 (late night): on-device compiler + T290Metal.bundle built
 
 - `t290/metal/compiler/` airglc: C++ port of airgl on llvm::Module

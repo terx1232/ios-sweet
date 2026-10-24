@@ -8,6 +8,7 @@
 #import <Metal/Metal.h>
 #include <IOSurface/IOSurfaceRef.h>
 #import <objc/runtime.h>
+#include <dlfcn.h>
 #include <fcntl.h>
 #include <stdarg.h>
 #include <unistd.h>
@@ -225,13 +226,25 @@ int main(int argc, char **argv)
 	@autoreleasepool {
 		log_fd = open("/private/var/tmp/t290mtltest.log", O_WRONLY | O_CREAT | O_TRUNC, 0666);
 		NSString *path = argc > 1 ? @(argv[1]) : @"/System/Library/Extensions/T290Metal.bundle";
-		NSBundle *b = [NSBundle bundleWithPath:path];
-		NSError *e = nil;
-		if (![b loadAndReturnError:&e]) {
-			say("FAIL load %s: %s", path.UTF8String, e.localizedDescription.UTF8String);
-			return 2;
+		BOOL dir = NO;
+		[[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&dir];
+		Class c = Nil;
+		if (dir) {
+			NSBundle *b = [NSBundle bundleWithPath:path];
+			NSError *e = nil;
+			if (![b loadAndReturnError:&e]) {
+				say("FAIL load %s: %s", path.UTF8String, e.localizedDescription.UTF8String);
+				return 2;
+			}
+			c = b.principalClass;
+		} else {
+			/* the bundle's Mach-O alone (the SD transfer cannot create directories) */
+			if (!dlopen(path.UTF8String, RTLD_NOW)) {
+				say("FAIL dlopen %s: %s", path.UTF8String, dlerror());
+				return 2;
+			}
+			c = NSClassFromString(@"T290MetalDevice");
 		}
-		Class c = b.principalClass;
 		say("mtltest: bundle %s, principal class %s", path.UTF8String, c ? class_getName(c) : "(none)");
 		id<MTLDevice> dev = [(id)[c alloc] initWithAcceleratorPort:0 options:nil];
 		check(dev != nil, "device");
