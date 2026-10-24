@@ -22,7 +22,17 @@
   Planar binds: R8/RG8/LA8 per plane (existing), plus fallback when CA binds a
   whole 420f/420v surface as RGB(A): CPU BT.601 conversion into an RGBA
   mirror on seed change (read-only). yuvcheck.c PASS (dl/ui0146d).
-  WSL build build-ui0146d PASS, dl/ui0146d. NOT staged yet (tablet in iPadOS).
+  WSL build build-ui0146d PASS, dl/ui0146d.
+- Audit frame on ui0146c (ios-t290/usb-captures/audit/105211.png, power-off
+  screen): blur background OK, but the power glyph in the slider knob is RED
+  STRIPES (an uploaded image read with wrong stride/format; not yet identified).
+- **ui0146d STAGED with capture marker '2'** (4 ops: get log+bridge to
+  dl/ui0146d/before, put bridge, put /private/var/tmp/t290eagl.trace="2"),
+  SD readback SHA256 22ced304... MATCH. Capture mode streams upload/draw
+  records with pixels over USB (slower UI). Next: boot, run
+  dl/ui0146d/collect-live.py while the user visits home, power-off slider,
+  Settings, Control Center; decode with t290/eagl/decode-capture.py.
+  Afterwards stage trace marker "0" again.
 
 ## Active handoff 2026-10-24 (noon): ui0146b result, ui0146c diagnostics built
 
