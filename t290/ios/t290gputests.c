@@ -79,6 +79,12 @@ main(void)
 	const char *failed = "/private/var/tmp/t290metal.failed";
 	char *bundle = access("/System/Library/Extensions/T290Metal.bundle/T290Metal", F_OK) == 0 ?
 	    "/System/Library/Extensions/T290Metal.bundle" : "/usr/lib/T290Metal";
+	if (access("/usr/bin/t290mtlprobe", X_OK) == 0) {
+		char *pr[] = {"/usr/bin/t290mtlprobe", NULL};
+		int r = run(pr, 60);
+		snprintf(msg, sizeof(msg), "t290gputests: t290mtlprobe exit %d", r);
+		klog(msg);
+	}
 	if (access("/usr/bin/t290mtltest", X_OK) == 0) {
 		char *mt[] = {"/usr/bin/t290mtltest", bundle, NULL};
 		int r = run(mt, 90);

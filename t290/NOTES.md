@@ -4,6 +4,22 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff 2026-10-24 (night, 5): 0147 booted; Metal finds the node but never creates the device
+
+- User: UI looks like GLES. SD metal2 done 7/7 (mkdir -> 0 works; bundle in
+  /System/Library/Extensions/T290Metal.bundle). pstore
+  ios-t290/logs/metal2-return: "T290Accelerator (IOAcceleratorES)
+  registered"; mtltest from the bundle PASS (Metal allowed); backboardd and
+  SpringBoard IOKit matching IOAcceleratorES -> 1 found, but NO
+  "T290Metal: device init in backboardd": discovery stops before our init
+  (bundle not loaded, or IOGPU's registration rejects the node).
+- metal3 STAGED 6 ops (readback SHA c3dbfec6... MATCH): get t290metal.log
+  + t290mtltest.log -> dl/metal3/before; put bundle T290Metal (constructor
+  logs "bundle loaded into <proc>"), t290mtltest, new /usr/bin/t290mtlprobe
+  (MTLCreateSystemDefaultDevice/MTLCopyAllDevices, node properties, dyld
+  images, manual NSBundle load error -> kernel log), t290gputests (runs the
+  probe first). Next: boot, pstore "t290mtlprobe:" lines.
+
 ## Active handoff 2026-10-24 (night, 4): phase 4 — kernel 0147 built, metal2 staged, flash pending
 
 - xnu/patches/0147 (commit ca6783b, pushed to fork): T290Accelerator

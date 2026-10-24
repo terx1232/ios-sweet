@@ -41,5 +41,8 @@ clang-14 "${flags[@]}" -c "$here/mtltest.m" -o "$out/obj/mtltest.o"
 "$ld" "${link[@]}" -o "$out/mtltest" "$out/obj/mtltest.o" -framework Foundation -framework CoreFoundation \
 	-framework Metal -framework IOSurface -lobjc -lSystem
 "$ldid" -S"$here/../../ios/ent.plist" -Cadhoc -Hsha256 "$out/mtltest"
-(cd "$out" && sha256sum T290Metal.bundle/T290Metal T290Metal.bundle/Info.plist mtltest > SHA256SUMS)
+clang-14 "${flags[@]}" -c "$here/mtlprobe.m" -o "$out/obj/mtlprobe.o"
+"$ld" "${link[@]}" -o "$out/mtlprobe" "$out/obj/mtlprobe.o" -framework Foundation -framework CoreFoundation 	-framework Metal -framework IOKit -lobjc -lSystem
+"$ldid" -S"$here/../../ios/ent.plist" -Cadhoc -Hsha256 "$out/mtlprobe"
+(cd "$out" && sha256sum T290Metal.bundle/T290Metal T290Metal.bundle/Info.plist mtltest mtlprobe > SHA256SUMS)
 ls -la "$out/T290Metal.bundle" "$out/mtltest"

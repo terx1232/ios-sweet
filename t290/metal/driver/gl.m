@@ -49,6 +49,12 @@ void t290_log(const char *fmt, ...)
 	if (log_fd >= 0) write(log_fd, buf, n);
 }
 
+/* which processes load the bundle at all (Metal device discovery) */
+__attribute__((constructor)) static void t290_loaded(void)
+{
+	t290_log("T290Metal: bundle loaded into %s pid %d", getprogname(), getpid());
+}
+
 NSError *t290_error(NSString *fmt, ...)
 {
 	va_list ap;
