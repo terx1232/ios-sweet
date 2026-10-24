@@ -4,6 +4,18 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff 2026-10-24 (evening): user chose a Metal driver
+
+- User chose option 4 (own Metal driver) over finishing CA's GLES path.
+  Recon and plan: `t290/metal/README.md`. Facts: Metal loads the bundle named
+  by IOAcceleratorES properties MetalPluginName/MetalPluginClassName; CA's
+  shaders are QuartzCore default.metallib (141 AIR functions, uber shaders
+  with function constants); llvm-dis-14 reads the AIR (WSL ~/air, split
+  modules m000..m140.bc + names.txt). Next: phase 1, AIR -> GLSL ES translator.
+- ui0146d with capture marker '2' is still staged/booted state unknown:
+  the user booted it but the capture run was not collected. Stage trace "0"
+  again before normal use (capture mode slows the UI).
+
 ## Active handoff 2026-10-24 (afternoon): ui0146c finding, ui0146d built
 
 - ui0146c booted (SD done 3/3; capture ios-t290/usb-captures/ui0146c/
