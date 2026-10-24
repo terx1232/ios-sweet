@@ -71,7 +71,13 @@ NSDictionary *t290_constant_values(MTLFunctionConstantValues *values);
 - (instancetype)initWithDevice:(T290Device *)device;
 @end
 
-@interface T290MetalDevice : NSObject <MTLDevice>
+/* Metal accepts a plugin device class only if it is a subclass of its
+ * private base class (+isSubclassOfClass:_MTLDevice; seen on the tablet).
+ * Exported by Metal.framework (Metal.tbd); its ivars are laid out at run time. */
+@interface _MTLDevice : NSObject <MTLDevice>
+@end
+
+@interface T290MetalDevice : _MTLDevice
 - (instancetype)initWithAcceleratorPort:(mach_port_t)port options:(NSDictionary *)options;
 @end
 

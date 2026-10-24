@@ -4,6 +4,18 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff 2026-10-25: Metal requires a _MTLDevice subclass
+
+- metal4 done 2/2; pstore ios-t290/logs/metal4-return. MTLDeviceSPI got
+  added, then Metal's only query was `+isSubclassOfClass:_MTLDevice -> 0`
+  (probe, backboardd, mediaserverd) and no alloc/init: the plugin class must
+  derive from Metal's private _MTLDevice (exported, Metal.tbd).
+- metal5: T290MetalDevice : _MTLDevice (bundle links
+  _OBJC_CLASS_$__MTLDevice from Metal). STAGED 2 ops (get t290metal.log,
+  put bundle), readback SHA 2d13ef4e... MATCH. If Metal accepts it,
+  backboardd/CA may switch to Metal on this boot; guards: t290metal.failed
+  via mtltest, 3-crash counter, t290metal.off by hand.
+
 ## Active handoff 2026-10-24 (night, 6): bundle IS loaded by Metal, device class rejected
 
 - metal3 done 6/6; pstore ios-t290/logs/metal3-return. Probe: node class
