@@ -3,6 +3,7 @@
  * service (MetalPluginClassName); tests create it directly. */
 #import "t290mtl.h"
 #include <objc/runtime.h>
+#include <dlfcn.h>
 
 @interface T290Buffer (Init)
 - (instancetype)initWithDevice:(T290Device *)device length:(NSUInteger)length options:(MTLResourceOptions)options
@@ -214,6 +215,23 @@ static unsigned class_queries;
 	static unsigned n;
 	if (n++ < 16) t290_log("T290Metal: supportsFeatureSet %lu -> %d", (unsigned long)fs, yes);
 	return yes;
+}
+/* MTLDeviceSPI: Metal reads fields of the returned profile directly (it
+ * crashed reading +0x10 of our former nil). Its layout is Apple's; a zeroed
+ * block makes every profile field read as "not supported" until the fields
+ * Metal actually uses are known. */
+- (const void *)featureProfile
+{
+	static uint64_t zeros[8192];
+	static unsigned traced;
+	if (traced++ < 8) {
+		Dl_info info;
+		void *ra = __builtin_return_address(0);
+		if (dladdr(ra, &info) && info.dli_fname)
+			t290_log("T290Metal: featureProfile from %s+%#lx", strrchr(info.dli_fname, '/') ? strrchr(info.dli_fname, '/') + 1 :
+			    info.dli_fname, (unsigned long)((uintptr_t)ra - (uintptr_t)info.dli_fbase));
+	}
+	return zeros;
 }
 - (BOOL)supportsTextureSampleCount:(NSUInteger)n { return n == 1; }
 - (BOOL)supportsVertexAmplificationCount:(NSUInteger)n { return n == 1; }

@@ -4,6 +4,20 @@
 (XNU + неизменённый userland iOS 16 на Redmi Note 10 Pro). Локальная копия:
 `D:\test1\ios-sweet`, его `NOTES.md` — подробный журнал того, как это делалось.
 
+## Active handoff 2026-10-25 (3): crash located (featureProfile), metal7 staged
+
+- metal6 done 4/4 (counter was 3 before the reset). Allow list worked:
+  mediaserverd "no device". Crash logger (pstore ios-t290/logs/metal6-return):
+  backboardd, every start, same: right after three -[T290MetalDevice
+  featureProfile] (unimplemented -> 0), SIGSEGV addr 0x10 at
+  Metal+0x2b660 (pc == lr), called from QuartzCore+0x204538 /
+  +0x66fc8 / +0x156894 ... on a dispatch queue. So Metal reads +0x10 of the
+  featureProfile result. Metal strings: featureProfile,
+  featureProfile:supportsFeatureSet:, deviceOrFeatureProfileSupportsFeatureSet:.
+- metal7: featureProfile returns a pointer to a zeroed 64 KiB block (layout
+  unknown; all fields "unsupported") and logs its caller. STAGED 3 ops (get
+  t290metal.log, put bundle, counter = 0), readback SHA de0f785a... MATCH.
+
 ## Active handoff 2026-10-25 (2): Metal device accepted; clients crash; metal6 staged
 
 - metal5 boot (USB live ios-t290/usb-captures/metal5, pstore
